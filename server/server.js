@@ -13,7 +13,7 @@ import categoriesRoutes from './routes/categories.js'
 import usersRoutes from './routes/users.js'
 
 const corsOptions = {
-  origin: 'http://localhost:3000',
+  origin: process.env.CLIENT_ORIGIN || 'http://localhost:3000',
   methods: ["POST", "PUT", "GET", "OPTIONS", "HEAD", "DELETE"],
   preflightContinue: true,
   credentials: true
@@ -27,14 +27,14 @@ app.use(session(
       createTableIfMissing: true,
       pgPromise: pg
     }),
-    secret: process.env.SECRET,
+    secret: process.env.SECRET || 'insecure-dev-secret',
     resave: false,
     saveUninitialized: false,
     cookie: {
       sameSite: 'lax',
       secure: process.env.NODE_ENV === "production",
       maxAge: 1000 * 60 * 60 * 24,
-      httpOnly: false
+      httpOnly: true
     }
   }
 ))
@@ -48,8 +48,8 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-
-app.use(express.static('.'))
+// Only expose uploaded images (under /uploads), not the whole server directory.
+app.use('/uploads', express.static('./imagefolder'))
 
 const cryptography = `CREATE EXTENSION IF NOT EXISTS pgcrypto`
 
@@ -83,32 +83,22 @@ const createImagesTable = `
     updated_at timestamp,
     filepath text NOT NULL
   );
-`;
+`
 
-pg.any(cryptography)
-  .then((data) => {
-    pg.any(createUsersTable)
-      .then((data) => {
-        pg.any(createCategoriesTable)
-          .then((data) => {
-            pg.any(createImagesTable)
-              .then((data) => {
-              })
-              .catch((err) => {
-                console.error('Error creating table', err);
-              })
-          })
-          .catch((err) => {
-            console.error('Error creating table', err);
-          })
-      })
-      .catch((err) => {
-        console.error('Error creating table', err);
-      })
-  })
-  .catch((err) => {
-    console.error('Error creating table', err);
-  })
+async function initializeDatabase() {
+  try {
+    await pg.any(cryptography)
+    await pg.any(createUsersTable)
+    await pg.any(createCategoriesTable)
+    await pg.any(createImagesTable)
+    console.log('Database initialization complete')
+  } catch (err) {
+    console.error('Error creating tables', err)
+    process.exit(1)
+  }
+}
+
+initializeDatabase();
 
 app.use("/api/v1/images", imagesRoutes)
 app.use("/api/v1/categories", categoriesRoutes)
@@ -116,6 +106,8 @@ app.use("/api/v1/users", usersRoutes)
 
 const port = 5000;
 
-app.listen(port, () => console.log(`Server started on port ${port}`));
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(port, () => console.log(`Server started on port ${port}`));
+}
 
 export default app;

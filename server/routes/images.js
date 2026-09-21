@@ -7,169 +7,149 @@ const PQ = pgPromise.ParameterizedQuery
 
 const router = express.Router()
 
+const imageSelect = `
+  SELECT images.*, categories.categoryname AS category_name
+  FROM images
+  INNER JOIN categories ON images.category = categories.id
+`
+
+// GET /api/v1/images?random=true | ?search=term | ?id=5
 router.get("/", async (req, res) => {
-  let params = req.query;
+  const { random, search, id } = req.query;
   try {
-    if (params.random) {
-      const randomImage = `
-      SELECT * FROM images 
-      INNER JOIN categories ON images.category = categories.id 
-      WHERE categories.private = 'f' 
-      ORDER BY RANDOM() LIMIT 1`
-      pg.any(randomImage)
-        .then((result) => {
-          console.log(result)
-          res.send({
-            status: "success",
-            body: result,
-          });
-        })
-        .catch((error) => {
-          console.log(error)
-        })
-    } else if (params.search) {
-      const searchText = `%${params.search}%`;
-      const searchImages = new PQ({
+    if (random) {
+      const result = await pg.any(`
+        ${imageSelect}
+        WHERE categories.private = false
+        ORDER BY RANDOM() LIMIT 1
+      `);
+      return res.send({ status: "success", body: result });
+    }
+    if (search) {
+      const result = await pg.any(new PQ({
         text: `
-          SELECT *
-          FROM images
-          INNER JOIN categories
-            ON images.category = categories.id
+          ${imageSelect}
           WHERE img_name ILIKE $1
             AND categories.private = false
         `,
-        values: [searchText]
-      });
-      pg.any(searchImages)
-        .then((result) => {
-          console.log(result)
-          res.send({
-            status: "success",
-            body: result,
-          });
-        })
-        .catch((error) => {
-          console.log(error)
-        })
-    } else if (params.id) {
-      const imageById = `
-      SELECT 1 FROM images 
-      WHERE id = ${params.id}`
-      pg.any(imageById)
-        .then((result) => {
-          console.log(result)
-          res.send({
-            status: "success",
-            body: result,
-          });
-        })
-        .catch((error) => {
-          console.log(error)
-        })
+        values: [`%${search}%`]
+      }));
+      return res.send({ status: "success", body: result });
     }
-  } catch (err) {
-    res.status(500).send(err)
-  }
-})
-
-router.get("/:categoryId", (req, res) => {
-  console.log(req.params)
-  const imagesPerCategory = new PQ({ text: `SELECT * FROM images WHERE category = $1`, values: [req.params.categoryId] })
-  pg.any(imagesPerCategory)
-    .then((result) => {
-      console.log(result)
-      res.send({
-        status: "success",
-        body: result,
-      });
-    })
-    .catch((error) => {
-      console.log(error)
-    })
-})
-
-router.post("/", async (req, res) => {
-  try {
-    if (!req.files) {
-      res.send({
-        status: "failed",
-        message: "No file uploaded",
-      });
-    } else {
-      console.log(req.body)
-
-      const file = req.files.files
-
-      console.log(file)
-
-      let path = `./imagefolder/${req.body.category}/${req.files.files.name}`
-      console.log(path)
-      file.mv(path)
-
-      const insertItem = new PQ({
+    if (id) {
+      const result = await pg.any(new PQ({
         text: `
-        INSERT INTO images (img_name, category, upload_id, created_at, updated_at, filepath)
-        VALUES (
-          $4,
-          $1,
-          $2,
-          current_timestamp,
-          current_timestamp,
-          $3
-        )
-      `, values: [req.body.category, req.session.user.id, path, req.body.img_name]
-      })
-      pg.none(insertItem)
-        .then(() => {
-          console.log('Entry created successfully');
-          res.send({
-            status: "success",
-            message: "File is uploaded",
-            data: {
-              name: file.name,
-              mimetype: file.mimetype,
-              size: file.size,
-            },
-          });
-        })
-        .catch((err) => {
-          console.error('Error inserting', err.message);
-        })
+          ${imageSelect}
+          WHERE images.id = $1
+        `,
+        values: [id]
+      }));
+      return res.send({ status: "success", body: result });
     }
+    return res.status(400).send({ status: "failed", message: "Missing query parameter: random, search or id" });
   } catch (err) {
-    console.log(err)
-    res.status(500).send(err);
+    console.error(err);
+    return res.status(500).send({ status: "error", message: err.message });
   }
 });
 
-router.patch("/:imageId", async (req, res) => {
-  let query;
-  if (req.body.img_name) {
-    query = new PQ({
-      text: `
-      UPDATE images
-      SET img_name = $1
-      WHERE id = $2
-      RETURNING *;
-    `,
-      values: [req.body.img_name, req.params.imageId],
-    });
+// GET /api/v1/images/:categoryId — list images in a category
+router.get("/:categoryId", async (req, res) => {
+  try {
+    const result = await pg.any(new PQ({
+      text: `SELECT * FROM images WHERE category = $1`,
+      values: [req.params.categoryId]
+    }));
+    return res.send({ status: "success", body: result });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).send({ status: "error", message: err.message });
   }
+});
 
-  pg.any(query)
-    .then((result) => {
-      res.send({
-        status: "success",
-        body: result,
-      });
-    })
-    .catch((error) => {
-      console.error(error);
-      res.status(500).send({
-        status: "error",
-        error: error.message,
-      });
+// POST /api/v1/images — upload a new image (logged in users only)
+router.post("/", async (req, res) => {
+  try {
+    if (!req.session.user) {
+      return res.status(401).send({ status: "failed", message: "Not logged in" });
+    }
+    if (!req.files?.files) {
+      return res.status(400).send({ status: "failed", message: "No file uploaded" });
+    }
+    if (!req.body.img_name) {
+      return res.status(400).send({ status: "failed", message: "img_name is required" });
+    }
+
+    // Resolve the category through the DB so we only ever use a valid integer id
+    // (this also defends against path traversal via req.body.category).
+    const category = await pg.any(new PQ({
+      text: `SELECT id FROM categories WHERE id = $1 AND (creator_id = $2 OR private = false)`,
+      values: [req.body.category, req.session.user.id]
+    }));
+    if (!category.length) {
+      return res.status(400).send({ status: "failed", message: "Invalid category" });
+    }
+    const categoryId = category[0].id;
+
+    // Sanitize the file name: strip any directory separators and non-safe characters.
+    const cleanedName = req.files.files.name.replace(/\\/g, '/');
+    const baseName = cleanedName.substring(cleanedName.lastIndexOf('/') + 1);
+    const safeName = baseName.replace(/[^A-Za-z0-9._-]/g, '_');
+
+    const file = req.files.files;
+    const storeDir = `./imagefolder/${categoryId}`;
+    const storedPath = `uploads/${categoryId}/${safeName}`;
+
+    await file.mv(`${storeDir}/${safeName}`);
+    await pg.none(new PQ({
+      text: `
+        INSERT INTO images (img_name, category, upload_id, created_at, updated_at, filepath)
+        VALUES ($1, $2, $3, current_timestamp, current_timestamp, $4)
+      `,
+      values: [req.body.img_name, categoryId, req.session.user.id, storedPath]
+    }));
+
+    return res.send({
+      status: "success",
+      message: "File is uploaded",
+      data: {
+        name: safeName,
+        mimetype: file.mimetype,
+        size: file.size,
+      },
     });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).send({ status: "error", message: err.message });
+  }
+});
+
+// PATCH /api/v1/images/:imageId — rename one of your images
+router.patch("/:imageId", async (req, res) => {
+  try {
+    if (!req.session.user) {
+      return res.status(401).send({ status: "failed", message: "Not logged in" });
+    }
+    if (!req.body.img_name) {
+      return res.status(400).send({ status: "failed", message: "img_name is required" });
+    }
+    const result = await pg.any(new PQ({
+      text: `
+        UPDATE images
+        SET img_name = $1
+        WHERE id = $2 AND upload_id = $3
+        RETURNING *;
+      `,
+      values: [req.body.img_name, req.params.imageId, req.session.user.id],
+    }));
+    if (!result.length) {
+      return res.status(404).send({ status: "failed", message: "Image not found or not yours" });
+    }
+    return res.send({ status: "success", body: result });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).send({ status: "error", message: err.message });
+  }
 });
 
 export default router;

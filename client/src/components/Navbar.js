@@ -15,32 +15,29 @@ const Navbar = () => {
     dispatch(destroySession())
   }
 
-  const getUserData = async () => {
-    await dispatch(checkSession())
-  }
-
   const handleKeyUp = (e) => {
-    setTimeout(() => {
-    if (e.target.value)
-      navigate(`/search?query=${e.target.value}`)
-    }, 300)
+    if (e.key === 'Enter' && e.target.value) {
+      navigate(`/search?query=${encodeURIComponent(e.target.value)}`)
+    }
   }
 
   useEffect(() => {
-    getUserData()
-  }, [])
+    dispatch(checkSession())
+  }, [dispatch])
   return (
     <nav className="flex border-b-4 border-white justify-between bg-gray-900">
       <NavLink className="bg-white text-blue text-lg font-sans font-bold py-2 px-8" to="/">
-        placeholder
+        Image Store
       </NavLink>
       <NavLink
         className="py-2 px-8 pointer font-bold text-lg text-white font-sans hover:bg-white hover:text-gray-900"
         to="/categories"
       >Categories</NavLink>
       <input
-      onKeyUp={(e) => handleKeyUp(e)}>
-      </input>
+        type="text"
+        placeholder="Search..."
+        onKeyUp={handleKeyUp}
+      />
       {user ?
         <>
           <NavLink

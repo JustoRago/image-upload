@@ -9,14 +9,13 @@ const Categories = () => {
 
   const dispatch = useDispatch();
 
-  const getCategoryArray = async () => {
-    const categoryArray = await dispatch(getCategories())
-    setCategories(categoryArray.payload?.data.categories || [])
-  }
-
   useEffect(() => {
-    getCategoryArray()
-  }, [])
+    const load = async () => {
+      const categoryArray = await dispatch(getCategories())
+      setCategories(categoryArray.payload?.data?.categories || [])
+    }
+    load()
+  }, [dispatch])
 
   return (
     <main className={mainClass}>

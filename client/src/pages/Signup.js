@@ -31,19 +31,19 @@ const Signup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const signup = await dispatch(createRegistration({email, username, password}))
-    console.log(signup)
-    if(signup.payload?.success) {
-      const login = await dispatch(createSession({username, password}))
-      if(login.payload?.logged) {
+    const signup = await dispatch(createRegistration({ email, username, password }))
+    if (signup.payload?.success) {
+      const login = await dispatch(createSession({ username, password }))
+      if (login.payload?.logged) {
         navigate('/')
       }
-    } else {
-      setErrors({email: null, user: null, password: null})
-      if(signup.payload?.message.split(' ')[0] === "User") {
-        setErrors((prevState) => ({...prevState, user: signup.payload?.message}))
-      } else if(signup.payload?.message.split(' ')[0] === "Email") {
-        setErrors((prevState) => ({...prevState, email: signup.payload?.message}))
+    } else if (signup.payload?.message) {
+      setErrors({ email: null, user: null, password: null })
+      const firstWord = String(signup.payload.message).split(' ')[0]
+      if (firstWord === "User") {
+        setErrors((prevState) => ({ ...prevState, user: signup.payload.message }))
+      } else if (firstWord === "Email") {
+        setErrors((prevState) => ({ ...prevState, email: signup.payload.message }))
       }
     }
   };
@@ -54,28 +54,28 @@ const Signup = () => {
       <form className={formClass} onSubmit={handleSubmit}>
         <label className={labelClass}>
           Email:
-          <input 
+          <input
             className={inputClass(errors.email)}
             type="email" value={email} onChange={handleEmailChange} />
         </label>
         {errors.email && <p className={errorPClass}>{errors.email}</p>}
         <label className={labelClass}>
           Username:
-          <input 
+          <input
             className={inputClass(errors.user)}
             type="text" value={username} onChange={handleUsernameChange} />
         </label>
         {errors.user && <p className={errorPClass}>{errors.user}</p>}
         <label className={labelClass}>
           Password:
-          <input 
+          <input
             className="p-2 rounded-md border-2 cursor-pointer 
             border-gray-400 bg-gray-800 text-white w-full"
             type="password" value={password} onChange={handlePasswordChange} />
         </label>
         <br />
-        <button 
-          className={submitButtonClass} 
+        <button
+          className={submitButtonClass}
           type="submit">Sign up</button>
       </form>
     </main>

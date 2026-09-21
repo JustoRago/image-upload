@@ -1,56 +1,53 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import { BASE_URL } from '../../constants';
 
-const createSession = createAsyncThunk('session/createSession', async(obj, { rejectWithValue }) => {
-  const response = await fetch('http://127.0.0.1:5000/api/v1/users/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(obj),
-      credentials: 'include'
-    }).then(async (response) => {
-      if(response.status !== 200) {
-        let error = await response.text().then((error) => JSON.parse(error))
-        console.log(error)
-        return rejectWithValue(error);
-      }
-      return response.json();
-    }).then((response) => response)
-  console.log(response)
-  return response
+const createSession = createAsyncThunk('session/createSession', async (obj, { rejectWithValue }) => {
+  const response = await fetch(`${BASE_URL}/api/v1/users/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(obj),
+    credentials: 'include',
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Login failed' }));
+    return rejectWithValue(error);
+  }
+  return response.json();
 })
 
 const destroySession = createAsyncThunk('session/destroySession', async () => {
-  const response = await fetch('http://127.0.0.1:5000/api/v1/users/logout', {
+  await fetch(`${BASE_URL}/api/v1/users/logout`, {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',
     },
-    credentials: 'include'
-  })
-  .then((response) => response)
+    credentials: 'include',
+  });
   return null
 })
 
 const checkSession = createAsyncThunk('session/checkSession', async () => {
-  const response = await fetch('http://127.0.0.1:5000/api/v1/users', {
+  const response = await fetch(`${BASE_URL}/api/v1/users`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
     },
     credentials: "include",
-  })
-    .then((response) => response.json())
-  console.log(response)
-  return response
+  });
+  if (!response.ok) {
+    throw new Error(`Session check failed: ${response.status}`);
+  }
+  return response.json();
 })
 
-const sessionSlice = createSlice({ 
-  name: 'session', 
-  initialState: { 
-    user: null, 
-    loading: false, 
-    error: null 
+const sessionSlice = createSlice({
+  name: 'session',
+  initialState: {
+    user: null,
+    loading: false,
+    error: null
   },
   extraReducers: (builder) => {
     builder.addCase(checkSession.pending, (state) => ({

@@ -1,7 +1,8 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import { BASE_URL } from '../../constants';
 
 const searchImages = createAsyncThunk('images/searchImages', async (obj) => {
-  const resp = await fetch(`http://127.0.0.1:5000/api/v1/images?search=${obj}`, {
+  const resp = await fetch(`${BASE_URL}/api/v1/images?search=${encodeURIComponent(obj)}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -9,12 +10,11 @@ const searchImages = createAsyncThunk('images/searchImages', async (obj) => {
     credentials: "include",
   })
     .then((resp) => resp.json());
-  console.log(resp)
   return resp;
 })
 
 const searchSlice = createSlice({
-  name: 'greeting',
+  name: 'search',
   initialState: {
     loading: false,
     images: []

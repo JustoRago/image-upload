@@ -1,22 +1,20 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import { BASE_URL } from '../../constants';
 
 const getImages = createAsyncThunk('images/getImage', async (params) => {
-  const resp = await fetch(`http://127.0.0.1:5000/api/v1/images?${params}`, {
+  const resp = await fetch(`${BASE_URL}/api/v1/images?${params}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer {token}'
     },
     credentials: "include",
   })
     .then((resp) => resp.json())
-    .then((result) => result);
-    console.log(resp)
   return resp;
 });
 
 const getImagesPerCategory = createAsyncThunk('images/getImagesPerCategory', async (cat) => {
-  const resp = await fetch(`http://127.0.0.1:5000/api/v1/images/${cat}`, {
+  const resp = await fetch(`${BASE_URL}/api/v1/images/${cat}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -24,39 +22,25 @@ const getImagesPerCategory = createAsyncThunk('images/getImagesPerCategory', asy
     credentials: "include",
   })
     .then((resp) => resp.json());
-  console.log(resp)
   return resp;
 })
 
 const addImage = createAsyncThunk('images/addImage', async (obj) => {
-  console.log(obj)
-  const response = await fetch('http://127.0.0.1:5000/api/v1/images', {
+  const response = await fetch(`${BASE_URL}/api/v1/images`, {
     method: 'POST',
     credentials: "include",
     body: obj,
   })
     .then((response) => response.json())
-  console.log(response)
-  return response;
-});
-
-const patchImage = createAsyncThunk('images/addImage', async (body, id) => {
-  console.log(body, id)
-  const response = await fetch(`http://127.0.0.1:5000/api/v1/images?imageId=${id}`, {
-    method: 'PATCH',
-    credentials: "include",
-    body: body,
-  })
-    .then((response) => response.json())
-  console.log(response)
   return response;
 });
 
 const imagesSlice = createSlice({
-  name: 'greeting',
+  name: 'images',
   initialState: {
     loading: false,
-    images: []
+    images: [],
+    error: null,
   },
   extraReducers: (builder) => {
     builder.addCase(getImages.pending, (state) => ({
@@ -98,19 +82,6 @@ const imagesSlice = createSlice({
       loading: false,
     }));
     builder.addCase(addImage.rejected, (state, action) => ({
-      ...state,
-      loading: false,
-      error: action.error.message,
-    }));
-    builder.addCase(patchImage.pending, (state) => ({
-      ...state,
-      loading: true,
-    }));
-    builder.addCase(patchImage.fulfilled, (state) => ({
-      ...state,
-      loading: false,
-    }));
-    builder.addCase(patchImage.rejected, (state, action) => ({
       ...state,
       loading: false,
       error: action.error.message,

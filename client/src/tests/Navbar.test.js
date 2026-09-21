@@ -33,7 +33,7 @@ describe('tests navbar states', () => {
         </Provider>
       );
     })
-    const navBarLogo = screen.getByText(/logo/i)
+    const navBarLogo = screen.getByText(/Image Store/i)
     const loginButton = screen.getByText(/Log In/i)
     const signupButton = screen.getByText(/Sign Up/i)
     const addImage = screen.queryByText(/Add Image/i)

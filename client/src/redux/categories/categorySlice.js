@@ -1,7 +1,8 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import { BASE_URL } from '../../constants';
 
 const getCategories = createAsyncThunk('categories/getCategory', async () => {
-  const resp = await fetch('http://127.0.0.1:5000/api/v1/categories', {
+  const resp = await fetch(`${BASE_URL}/api/v1/categories`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -9,13 +10,11 @@ const getCategories = createAsyncThunk('categories/getCategory', async () => {
     credentials: "include",
   })
     .then((resp) => resp.json())
-  console.log(resp)
   return resp;
 });
 
 const getCategoryById = createAsyncThunk('categories/getCategoryById', async (id) => {
-  console.log(id)
-  const resp = await fetch(`http://127.0.0.1:5000/api/v1/categories/${id}`, {
+  const resp = await fetch(`${BASE_URL}/api/v1/categories/${id}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -23,12 +22,11 @@ const getCategoryById = createAsyncThunk('categories/getCategoryById', async (id
     credentials: "include",
   })
     .then((resp) => resp.json())
-  console.log(resp)
   return resp;
 })
 
 const addCategory = createAsyncThunk('categories/addCategory', async (obj) => {
-  const response = await fetch('http://127.0.0.1:5000/api/v1/categories', {
+  const response = await fetch(`${BASE_URL}/api/v1/categories`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -40,7 +38,7 @@ const addCategory = createAsyncThunk('categories/addCategory', async (obj) => {
 });
 
 const categorySlice = createSlice({
-  name: 'greeting',
+  name: 'categories',
   initialState: {
     loading: false,
     categories: [],

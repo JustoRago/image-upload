@@ -8,7 +8,7 @@ const cn = {
   user: process.env.DBUSER,
   password: process.env.DBPASS,
   host: process.env.DBHOST,
-  port: process.env.PORT,
+  port: process.env.DBPORT || process.env.PORT,
   database: process.env.DBNAME,
 };
 
