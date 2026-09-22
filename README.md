@@ -87,6 +87,14 @@ On first start the server seeds a default user so a fresh database is immediatel
 
 The seed only runs when `NODE_ENV` is not `production` and skips the user if it already exists. Override the credentials with the `SEED_USERNAME`, `SEED_PASSWORD` and `SEED_EMAIL` environment variables (see [server/.env.example](server/.env.example)).
 
+To also seed a few example categories and images, run the idempotent seed script from the `server/` folder (safe to re-run — nothing already present is recreated or overwritten):
+
+```sh
+npm run seed
+```
+
+It seeds the default user plus the `Nature`, `Food` and `Technology` categories with placeholder images, and works on the database the server connects to.
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## License

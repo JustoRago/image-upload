@@ -11,6 +11,7 @@ const app = express();
 import imagesRoutes from './routes/images.js'
 import categoriesRoutes from './routes/categories.js'
 import usersRoutes from './routes/users.js'
+import { seedDefaultUser } from './seed.js'
 
 const corsOptions = {
   origin: process.env.CLIENT_ORIGIN || 'http://localhost:3000',
@@ -87,35 +88,6 @@ const createImagesTable = `
     filepath text NOT NULL
   );
 `
-
-// Creates a default user so a fresh database is usable out of the box.
-// Only runs outside production; credentials are configurable via env vars and
-// default to the credentials the test suite expects.
-async function seedDefaultUser() {
-  if (process.env.NODE_ENV === 'production') {
-    console.log('Skipping default-user seed (NODE_ENV=production)')
-    return
-  }
-  const username = process.env.SEED_USERNAME || 'asdt560'
-  const email = process.env.SEED_EMAIL || 'asdt560@gmail.com'
-  const password = process.env.SEED_PASSWORD || 'justojose1'
-
-  const existing = await pg.oneOrNone(`SELECT 1 FROM users WHERE username = $1`, [username])
-  if (existing) {
-    console.log(`Default user '${username}' already exists — skipping seed`)
-    return
-  }
-
-  await pg.none(
-    `INSERT INTO users (username, created_at, email, password)
-     VALUES ($1, current_timestamp, $2, crypt($3, gen_salt('bf')))`,
-    [username, email, password]
-  )
-  console.log(
-    `Seeded default user '${username}'. ` +
-    'Change the password or override via SEED_USERNAME/SEED_PASSWORD/SEED_EMAIL.'
-  )
-}
 
 async function initializeDatabase() {
   try {
