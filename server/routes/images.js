@@ -38,13 +38,24 @@ router.get("/", async (req, res) => {
       return res.send({ status: "success", body: result });
     }
     if (id) {
-      const result = await pg.any(new PQ({
-        text: `
-          ${imageSelect}
-          WHERE images.id = $1
-        `,
-        values: [id]
-      }));
+      // A private image is only visible to the user who uploaded it.
+      const result = req.session.user
+        ? await pg.any(new PQ({
+            text: `
+              ${imageSelect}
+              WHERE images.id = $1
+                AND (categories.private = false OR images.upload_id = $2)
+            `,
+            values: [id, req.session.user.id]
+          }))
+        : await pg.any(new PQ({
+            text: `
+              ${imageSelect}
+              WHERE images.id = $1
+                AND categories.private = false
+            `,
+            values: [id]
+          }));
       return res.send({ status: "success", body: result });
     }
     return res.status(400).send({ status: "failed", message: "Missing query parameter: random, search or id" });
@@ -54,13 +65,31 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET /api/v1/images/:categoryId — list images in a category
+// GET /api/v1/images/:categoryId — list images in a category.
+// Private categories only show their images to the category owner.
 router.get("/:categoryId", async (req, res) => {
   try {
-    const result = await pg.any(new PQ({
-      text: `SELECT * FROM images WHERE category = $1`,
-      values: [req.params.categoryId]
-    }));
+    const result = req.session.user
+      ? await pg.any(new PQ({
+          text: `
+            SELECT images.*
+            FROM images
+            INNER JOIN categories ON images.category = categories.id
+            WHERE images.category = $1
+              AND (categories.private = false OR images.upload_id = $2)
+          `,
+          values: [req.params.categoryId, req.session.user.id]
+        }))
+      : await pg.any(new PQ({
+          text: `
+            SELECT images.*
+            FROM images
+            INNER JOIN categories ON images.category = categories.id
+            WHERE images.category = $1
+              AND categories.private = false
+          `,
+          values: [req.params.categoryId]
+        }));
     return res.send({ status: "success", body: result });
   } catch (err) {
     console.error(err);
@@ -144,7 +173,7 @@ router.patch("/:imageId", async (req, res) => {
     const result = await pg.any(new PQ({
       text: `
         UPDATE images
-        SET img_name = $1
+        SET img_name = $1, updated_at = current_timestamp
         WHERE id = $2 AND upload_id = $3
         RETURNING *;
       `,
