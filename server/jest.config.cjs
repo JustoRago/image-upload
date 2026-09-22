@@ -1,4 +1,5 @@
 module.exports = {
   testEnvironment: 'node',
-  transform: {}
+  transform: {},
+  setupFiles: ['./jest.setup.cjs']
 };

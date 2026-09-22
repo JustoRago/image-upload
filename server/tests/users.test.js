@@ -32,7 +32,10 @@ describe('after login', function () {
   it('should check user', async function () {
     let res = await authenticatedSession.get('/api/v1/users/')
       .expect(200)
-    await expect(res.body).toEqual({user: {username: 'asdt560', id: 2}})
+    // Only the username is fixed by the test fixture; the id depends on the
+    // local database and must not be hard-coded.
+    await expect(res.body.user.username).toEqual('asdt560')
+    await expect(typeof res.body.user.id).toEqual('number')
   });
 
   it('should log out', async function () {
@@ -42,4 +45,3 @@ describe('after login', function () {
   })
 
 });
-

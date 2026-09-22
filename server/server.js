@@ -50,6 +50,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // Only expose uploaded images (under /uploads), not the whole server directory.
 app.use('/uploads', express.static('./imagefolder'))
+// Back-compat: rows saved before the /uploads change stored filepaths as
+// './imagefolder/...' — keep those servable too.
+app.use('/imagefolder', express.static('./imagefolder'))
 
 const cryptography = `CREATE EXTENSION IF NOT EXISTS pgcrypto`
 
@@ -91,6 +94,9 @@ async function initializeDatabase() {
     await pg.any(createUsersTable)
     await pg.any(createCategoriesTable)
     await pg.any(createImagesTable)
+    // Schema evolution for databases created before updated_at existed:
+    // CREATE TABLE IF NOT EXISTS does not alter existing tables.
+    await pg.any(`ALTER TABLE images ADD COLUMN IF NOT EXISTS updated_at timestamp`)
     console.log('Database initialization complete')
   } catch (err) {
     console.error('Error creating tables', err)

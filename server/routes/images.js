@@ -1,4 +1,5 @@
 import express from "express";
+import fs from 'node:fs';
 import 'dotenv/config'
 import pg from '../db.js'
 import pgPromise from "pg-promise";
@@ -99,15 +100,22 @@ router.post("/", async (req, res) => {
     const file = req.files.files;
     const storeDir = `./imagefolder/${categoryId}`;
     const storedPath = `uploads/${categoryId}/${safeName}`;
+    const fullPath = `${storeDir}/${safeName}`;
 
-    await file.mv(`${storeDir}/${safeName}`);
-    await pg.none(new PQ({
-      text: `
-        INSERT INTO images (img_name, category, upload_id, created_at, updated_at, filepath)
-        VALUES ($1, $2, $3, current_timestamp, current_timestamp, $4)
-      `,
-      values: [req.body.img_name, categoryId, req.session.user.id, storedPath]
-    }));
+    await file.mv(fullPath);
+    try {
+      await pg.none(new PQ({
+        text: `
+          INSERT INTO images (img_name, category, upload_id, created_at, updated_at, filepath)
+          VALUES ($1, $2, $3, current_timestamp, current_timestamp, $4)
+        `,
+        values: [req.body.img_name, categoryId, req.session.user.id, storedPath]
+      }));
+    } catch (err) {
+      // Don't leave an orphaned file behind if the DB insert fails.
+      fs.promises.unlink(fullPath).catch(() => {});
+      throw err;
+    }
 
     return res.send({
       status: "success",
