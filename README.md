@@ -80,6 +80,13 @@ Organized as effectively two separate projects stored in one repository. Server 
 
 Client and server must also be started separately. Use http://127.0.0.1:3000/ when running locally to avoid CORS problems.
 
+On first start the server seeds a default user so a fresh database is immediately usable:
+
+- username: `asdt560`
+- password: `justojose1`
+
+The seed only runs when `NODE_ENV` is not `production` and skips the user if it already exists. Override the credentials with the `SEED_USERNAME`, `SEED_PASSWORD` and `SEED_EMAIL` environment variables (see [server/.env.example](server/.env.example)).
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## License
