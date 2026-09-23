@@ -2,6 +2,8 @@ import express from "express";
 import fileupload from "express-fileupload";
 import cors from "cors";
 import session from 'express-session'
+import helmet from 'helmet'
+import rateLimit from 'express-rate-limit'
 import 'dotenv/config'
 import pg from './db.js'
 import pgSession from 'connect-pg-simple'
@@ -15,12 +17,24 @@ import { seedDefaultUser } from './seed.js'
 
 const corsOptions = {
   origin: process.env.CLIENT_ORIGIN || 'http://localhost:3000',
-  methods: ["POST", "PUT", "GET", "OPTIONS", "HEAD", "DELETE"],
+  methods: ["POST", "PUT", "GET", "OPTIONS", "HEAD", "DELETE", "PATCH"],
   preflightContinue: true,
   credentials: true
 }
 
+app.use(helmet());
 app.use(cors(corsOptions));
+
+// Brute-force guard for the credential endpoints.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 30,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { status: "failed", message: "Too many attempts. Try again in a few minutes." },
+});
+app.use("/api/v1/users/login", authLimiter);
+app.use("/api/v1/users/signup", authLimiter);
 
 app.use(session(
   {
@@ -43,6 +57,10 @@ app.use(session(
 app.use(
   fileupload({
     createParentPath: true,
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10 MB per file
+      files: 5,
+    },
   }),
 );
 
@@ -89,6 +107,44 @@ const createImagesTable = `
   );
 `
 
+// Public category names share one global namespace; private category names
+// are only unique within the owning user's own private categories. Enforce
+// both at the database level (the API duplicates the check for friendlier
+// errors). If an existing database already contains duplicates, the index is
+// skipped with a warning instead of taking the server down.
+async function createCategoryUniquenessIndexes() {
+  const publicDupes = await pg.any(
+    `SELECT categoryname, COUNT(*) AS n
+     FROM categories WHERE private = false
+     GROUP BY categoryname HAVING COUNT(*) > 1`
+  );
+  const privateDupes = await pg.any(
+    `SELECT categoryname, creator_id, COUNT(*) AS n
+     FROM categories WHERE private = true
+     GROUP BY categoryname, creator_id HAVING COUNT(*) > 1`
+  );
+
+  if (publicDupes.length) {
+    console.warn(
+      `Skipping public-category uniqueness index — duplicate public names exist: ${publicDupes.map((d) => d.categoryname).join(', ')}`
+    );
+  } else {
+    await pg.any(
+      `CREATE UNIQUE INDEX IF NOT EXISTS categories_public_name_unique
+       ON categories (categoryname) WHERE private = false`
+    );
+  }
+
+  if (privateDupes.length) {
+    console.warn('Skipping private-category uniqueness index — duplicate private names exist for at least one user');
+  } else {
+    await pg.any(
+      `CREATE UNIQUE INDEX IF NOT EXISTS categories_private_name_unique
+       ON categories (categoryname, creator_id) WHERE private = true`
+    );
+  }
+}
+
 async function initializeDatabase() {
   try {
     await pg.any(cryptography)
@@ -98,6 +154,7 @@ async function initializeDatabase() {
     // Schema evolution for databases created before updated_at existed:
     // CREATE TABLE IF NOT EXISTS does not alter existing tables.
     await pg.any(`ALTER TABLE images ADD COLUMN IF NOT EXISTS updated_at timestamp`)
+    await createCategoryUniquenessIndexes()
     await seedDefaultUser()
     console.log('Database initialization complete')
   } catch (err) {
@@ -111,6 +168,14 @@ initializeDatabase();
 app.use("/api/v1/images", imagesRoutes)
 app.use("/api/v1/categories", categoriesRoutes)
 app.use("/api/v1/users", usersRoutes)
+
+// Central error handler — a safety net for anything that forwards an error
+// (route handlers already return a consistent { status, message } shape).
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err)
+  console.error(err)
+  return res.status(err.status || 500).json({ status: "error", message: err.message })
+});
 
 const port = 5000;
 

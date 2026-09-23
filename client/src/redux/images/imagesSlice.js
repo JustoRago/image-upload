@@ -35,6 +35,31 @@ const addImage = createAsyncThunk('images/addImage', async (obj) => {
   return response;
 });
 
+const updateImage = createAsyncThunk('images/updateImage', async ({ id, img_name }) => {
+  const response = await fetch(`${BASE_URL}/api/v1/images/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: "include",
+    body: JSON.stringify({ img_name }),
+  })
+    .then((response) => response.json())
+  return response;
+});
+
+const deleteImage = createAsyncThunk('images/deleteImage', async (id) => {
+  const response = await fetch(`${BASE_URL}/api/v1/images/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: "include",
+  })
+    .then((response) => response.json())
+  return response;
+});
+
 const imagesSlice = createSlice({
   name: 'images',
   initialState: {
@@ -90,4 +115,4 @@ const imagesSlice = createSlice({
 });
 
 export default imagesSlice.reducer;
-export { addImage, getImages, getImagesPerCategory };
+export { addImage, getImages, getImagesPerCategory, updateImage, deleteImage };

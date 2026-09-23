@@ -42,6 +42,37 @@ const checkSession = createAsyncThunk('session/checkSession', async () => {
   return response.json();
 })
 
+const updatePassword = createAsyncThunk('session/updatePassword', async (obj, { rejectWithValue }) => {
+  const response = await fetch(`${BASE_URL}/api/v1/users/password`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(obj),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Could not update password' }));
+    return rejectWithValue(error);
+  }
+  return response.json();
+})
+
+const deleteAccount = createAsyncThunk('session/deleteAccount', async (_, { rejectWithValue }) => {
+  const response = await fetch(`${BASE_URL}/api/v1/users/account`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Could not delete account' }));
+    return rejectWithValue(error);
+  }
+  return response.json();
+})
+
 const sessionSlice = createSlice({
   name: 'session',
   initialState: {
@@ -95,8 +126,13 @@ const sessionSlice = createSlice({
       user: null,
       error: action.error.message,
     }));
+    builder.addCase(deleteAccount.fulfilled, (state) => ({
+      ...state,
+      loading: false,
+      user: null,
+    }));
   }
 })
 
-export { checkSession, createSession, destroySession };
+export { checkSession, createSession, destroySession, updatePassword, deleteAccount };
 export default sessionSlice.reducer;

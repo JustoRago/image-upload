@@ -61,6 +61,8 @@
 - **Creation of public or private categories and authorization.**
 - **Uploading of images.**
 - **Searching images.**
+- **Rename or delete images, edit and delete categories.**
+- **Change password and delete account.**
 
 <!-- LIVE DEMO -->
 
@@ -97,7 +99,40 @@ It seeds the default user plus the `Nature`, `Food` and `Technology` categories 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## License
+## API overview
+
+All endpoints are under `http://localhost:5000/api/v1` and use a session cookie for authentication (`credentials: 'include'` on the client).
+
+| Endpoint | Description |
+| --- | --- |
+| `POST /users/signup`, `POST /users/login`, `DELETE /users/logout` | Accounts and sessions. |
+| `GET /users` | Returns the logged-in user. |
+| `PATCH /users/password` | Change the password (body: `current_password`, `new_password`). |
+| `DELETE /users/account` | Delete the account and its data (blocked while its categories still contain images). |
+| `GET /categories`, `GET /categories/:id` | List/view categories. Anonymous users only see public ones. |
+| `POST /categories` | Create a category (body: `category`, `privacy`). |
+| `PATCH /categories/:id` | Rename and/or toggle privacy of an owned category. |
+| `DELETE /categories/:id` | Delete an owned, empty category. |
+| `GET /images`, `GET /images/:categoryId` | List, search (`?search=`), random (`?random=true`) and per-category images. |
+| `POST /images` | Upload an image (multipart: `img_name`, `category`, `files`). Only PNG, JPEG, GIF and WebP up to 10 MB are accepted — content is validated by magic bytes, not the client MIME type. |
+| `PATCH /images/:id` | Rename one of your images (body: `img_name`). |
+| `DELETE /images/:id` | Delete one of your images (row and file). |
+
+### Category name uniqueness
+
+- **Public category names** share one global namespace — no two public categories may have the same name.
+- **Private category names** only need to be unique within the owning user's private categories — a private category may share its name with public categories or with other users' private categories.
+
+Duplicates are rejected with `409` both by the route and by database indexes (`categories_public_name_unique`, `categories_private_name_unique`) that are created on startup, so concurrent requests cannot slip through.
+
+### Security hardening
+
+- `helmet` security headers and login/signup **rate limiting** (30 attempts / 15 minutes per IP).
+- **Session fixation** is prevented: a fresh session id is generated on login.
+- Uploads are capped at **10 MB**, restricted to real image formats via **magic-byte sniffing**, and filenames are sanitized against path traversal.
+- Usernames/passwords/images/category names are length-limited via `express-validator`.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 This project is [MIT](./LICENSE) licensed.
 

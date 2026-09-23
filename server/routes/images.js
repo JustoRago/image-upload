@@ -3,16 +3,36 @@ import fs from 'node:fs';
 import 'dotenv/config'
 import pg from '../db.js'
 import pgPromise from "pg-promise";
+import { unlinkStoredFile } from '../storedFiles.js'
 
 const PQ = pgPromise.ParameterizedQuery
 
 const router = express.Router()
 
+const MAX_IMAGE_NAME_LENGTH = 100;
+
 const imageSelect = `
-  SELECT images.*, categories.categoryname AS category_name
+  SELECT images.*, categories.categoryname AS category_name, users.username AS uploader
   FROM images
   INNER JOIN categories ON images.category = categories.id
+  LEFT JOIN users ON images.upload_id = users.id
 `
+
+// Sniffs the leading bytes to decide whether a buffer is one of the
+// supported image formats. Trusting the client-supplied MIME type would be
+// spoofable, so the file content is what gets validated.
+function detectImageType(buf) {
+  if (!buf || buf.length < 4) return null
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return 'image/png'
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg'
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) return 'image/gif'
+  if (
+    buf.length >= 12
+    && buf.subarray(0, 4).toString('ascii') === 'RIFF'
+    && buf.subarray(8, 12).toString('ascii') === 'WEBP'
+  ) return 'image/webp'
+  return null
+}
 
 // GET /api/v1/images?random=true | ?search=term | ?id=5
 router.get("/", async (req, res) => {
@@ -109,6 +129,15 @@ router.post("/", async (req, res) => {
     if (!req.body.img_name) {
       return res.status(400).send({ status: "failed", message: "img_name is required" });
     }
+    if (req.body.img_name.length > MAX_IMAGE_NAME_LENGTH) {
+      return res.status(400).send({ status: "failed", message: `img_name must be at most ${MAX_IMAGE_NAME_LENGTH} characters` });
+    }
+    if (req.files.files.truncated) {
+      return res.status(400).send({ status: "failed", message: "File exceeds the 10 MB limit" });
+    }
+    if (!detectImageType(req.files.files.data)) {
+      return res.status(400).send({ status: "failed", message: "Only image files (PNG, JPEG, GIF, WebP) are allowed" });
+    }
 
     // Resolve the category through the DB so we only ever use a valid integer id
     // (this also defends against path traversal via req.body.category).
@@ -170,6 +199,9 @@ router.patch("/:imageId", async (req, res) => {
     if (!req.body.img_name) {
       return res.status(400).send({ status: "failed", message: "img_name is required" });
     }
+    if (req.body.img_name.length > MAX_IMAGE_NAME_LENGTH) {
+      return res.status(400).send({ status: "failed", message: `img_name must be at most ${MAX_IMAGE_NAME_LENGTH} characters` });
+    }
     const result = await pg.any(new PQ({
       text: `
         UPDATE images
@@ -183,6 +215,28 @@ router.patch("/:imageId", async (req, res) => {
       return res.status(404).send({ status: "failed", message: "Image not found or not yours" });
     }
     return res.send({ status: "success", body: result });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).send({ status: "error", message: err.message });
+  }
+});
+
+// DELETE /api/v1/images/:imageId — remove one of your images (file + row)
+router.delete("/:imageId", async (req, res) => {
+  try {
+    if (!req.session.user) {
+      return res.status(401).send({ status: "failed", message: "Not logged in" });
+    }
+    const rows = await pg.any(new PQ({
+      text: `SELECT id, filepath FROM images WHERE id = $1 AND upload_id = $2`,
+      values: [req.params.imageId, req.session.user.id]
+    }));
+    if (!rows.length) {
+      return res.status(404).send({ status: "failed", message: "Image not found or not yours" });
+    }
+    await pg.none('DELETE FROM images WHERE id = $1', [req.params.imageId])
+    await unlinkStoredFile(rows[0].filepath)
+    return res.send({ status: "success", message: "Image deleted" });
   } catch (err) {
     console.error(err);
     return res.status(500).send({ status: "error", message: err.message });

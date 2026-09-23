@@ -15,6 +15,7 @@ import Navbar from "./components/Navbar";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import Image from "./pages/Image";
+import Account from "./pages/Account";
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
           <Route path="/image/:id" element={<Image />} />
+          <Route path="/account" element={<Account />} />
         </Routes>
       </Router>
     </div>

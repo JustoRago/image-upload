@@ -68,6 +68,15 @@ const Navbar = () => {
               <MenuItems className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                 <div className="py-1">
                     <MenuItem>
+                        <NavLink
+                          className='bg-gray-100 text-gray-900 block 
+                          w-full px-4 py-2 text-left text-sm'
+                          to="/account"
+                        >
+                          Account
+                        </NavLink>
+                    </MenuItem>
+                    <MenuItem>
                         <button
                           className='bg-gray-100 text-gray-900 block 
                           w-full px-4 py-2 text-left text-sm'

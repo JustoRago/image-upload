@@ -37,6 +37,29 @@ const addCategory = createAsyncThunk('categories/addCategory', async (obj) => {
   return response.json();
 });
 
+const updateCategory = createAsyncThunk('categories/updateCategory', async ({ id, category, privacy }) => {
+  const response = await fetch(`${BASE_URL}/api/v1/categories/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: "include",
+    body: JSON.stringify({ category, privacy }),
+  });
+  return response.json();
+});
+
+const deleteCategory = createAsyncThunk('categories/deleteCategory', async (id) => {
+  const response = await fetch(`${BASE_URL}/api/v1/categories/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: "include",
+  });
+  return response.json();
+});
+
 const categorySlice = createSlice({
   name: 'categories',
   initialState: {
@@ -92,4 +115,4 @@ const categorySlice = createSlice({
 });
 
 export default categorySlice.reducer;
-export { getCategories, getCategoryById, addCategory };
+export { getCategories, getCategoryById, addCategory, updateCategory, deleteCategory };

@@ -1,5 +1,6 @@
 import app from '../server'
 import request from 'supertest'
+import fs from 'node:fs'
 import {
   TINY_PNG,
   unique,
@@ -147,6 +148,24 @@ describe('images routes', () => {
       expect(hit).toBeDefined()
       await deleteImageById(hit.id)
     });
+
+    it('rejects a file that is not a supported image', async () => {
+      const res = await sessionUser.post('/api/v1/images')
+        .field('img_name', unique('notimg'))
+        .field('category', categoryId)
+        .attach('files', Buffer.from('hello world, this is not an image'), 'fake.png')
+      expect(res.status).toBe(400)
+      expect(res.body.message).toMatch(/image files/i)
+    });
+
+    it('rejects a file over the 10 MB limit', async () => {
+      const res = await sessionUser.post('/api/v1/images')
+        .field('img_name', unique('bigimg'))
+        .field('category', categoryId)
+        .attach('files', Buffer.alloc(10 * 1024 * 1024 + 1), 'big.png')
+      expect(res.status).toBe(400)
+      expect(res.body.message).toMatch(/10 MB limit/i)
+    });
   });
 
   describe('PATCH /:imageId', () => {
@@ -211,6 +230,67 @@ describe('images routes', () => {
         await deleteImagesByUsername(username)
         await deleteUsersByUsername(username)
       }
+    });
+  });
+
+  describe('DELETE /:imageId', () => {
+    it('rejects anonymous deletion with 401', async () => {
+      const res = await request(app).delete(`/api/v1/images/${imageId}`)
+      expect(res.status).toBe(401)
+      expect(res.body.message).toBe('Not logged in')
+    });
+
+    it('returns 404 for an image that does not exist', async () => {
+      const res = await sessionUser.delete('/api/v1/images/99999999')
+      expect(res.status).toBe(404)
+    });
+
+    it('returns 404 when deleting another user\'s image', async () => {
+      const username = unique('deluser')
+      const imgName = unique('delimg')
+      await signupUser(username, `${username}@example.com`, 'pass1234')
+
+      let otherSession
+      try {
+        otherSession = await loginSession(username, 'pass1234')
+        const up = await otherSession.post('/api/v1/images')
+          .field('img_name', imgName)
+          .field('category', categoryId)
+          .attach('files', TINY_PNG, 'theirs.png')
+        expect(up.status).toBe(200)
+
+        const search = await request(app).get(`/api/v1/images?search=${encodeURIComponent(imgName)}`)
+        const theirImageId = search.body.body.find((i) => i.img_name === imgName).id
+
+        const res = await sessionUser.delete(`/api/v1/images/${theirImageId}`)
+        expect(res.status).toBe(404)
+      } finally {
+        await deleteImagesByUsername(username)
+        await deleteUsersByUsername(username)
+      }
+    });
+
+    it('deletes one of your own images (row and file)', async () => {
+      const imgName = unique('delownimg')
+      const up = await sessionUser.post('/api/v1/images')
+        .field('img_name', imgName)
+        .field('category', categoryId)
+        .attach('files', TINY_PNG, 'own-delete.png')
+      expect(up.status).toBe(200)
+
+      const search = await request(app).get(`/api/v1/images?search=${encodeURIComponent(imgName)}`)
+      const id = search.body.body.find((i) => i.img_name === imgName).id
+
+      const fileName = `./imagefolder/${categoryId}/own-delete.png`
+      expect(fs.statSync(fileName).isFile()).toBe(true)
+
+      const res = await sessionUser.delete(`/api/v1/images/${id}`)
+      expect(res.status).toBe(200)
+      expect(res.body.message).toBe('Image deleted')
+
+      const check = await request(app).get(`/api/v1/images?id=${id}`)
+      expect(check.body.body).toEqual([])
+      expect(fs.existsSync(fileName)).toBe(false)
     });
   });
 
