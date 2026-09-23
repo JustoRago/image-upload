@@ -3,8 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import pg from './db.js'
-
-const UPLOAD_DIR = './imagefolder'
+import { UPLOAD_DIR } from './storedFiles.js'
 
 // A 1x1 transparent PNG so seeded images are real, servable files.
 const TINY_PNG = Buffer.from(
@@ -47,17 +46,30 @@ export async function seedDefaultUser() {
     return existing
   }
 
-  const row = await pg.one(
-    `INSERT INTO users (username, created_at, email, password)
-     VALUES ($1, current_timestamp, $2, crypt($3, gen_salt('bf')))
-     RETURNING id, username`,
-    [username, email, password]
-  )
-  console.log(
-    `Seeded default user '${username}'. ` +
-    'Change the password or override via SEED_USERNAME/SEED_PASSWORD/SEED_EMAIL.'
-  )
-  return row
+  try {
+    const row = await pg.one(
+      `INSERT INTO users (username, created_at, email, password)
+       VALUES ($1, current_timestamp, $2, crypt($3, gen_salt('bf')))
+       RETURNING id, username`,
+      [username, email, password]
+    )
+    console.log(
+      `Seeded default user '${username}'. ` +
+      'Change the password or override via SEED_USERNAME/SEED_PASSWORD/SEED_EMAIL.'
+    )
+    return row
+  } catch (err) {
+    if (err.code === '23505') {
+      // Lost a seed race with another process (e.g. parallel jest workers on a
+      // fresh database) — reuse the fixture row the winner created.
+      const row = await pg.oneOrNone(
+        `SELECT id, username FROM users WHERE username = $1`,
+        [username]
+      )
+      if (row) return row
+    }
+    throw err
+  }
 }
 
 // Creates the default categories if they don't exist yet.

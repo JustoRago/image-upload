@@ -1,9 +1,8 @@
-import fs from 'node:fs'
-import path from 'node:path'
 import app from '../server'
 import session from 'supertest-session'
 import request from 'supertest'
 import pg from '../db.js'
+import { unlinkStoredFile } from '../storedFiles.js'
 
 // A tiny 1x1 transparent PNG used as the uploaded file in tests.
 export const TINY_PNG = Buffer.from(
@@ -28,12 +27,9 @@ export function loginSession(username = 'asdt560', password = 'justojose1') {
 }
 
 // Removes the real file on disk for a stored filepath like
-// `uploads/<categoryId>/<name>`.
-function unlinkStoredFile(filepath) {
-  if (!filepath) return
-  const relative = filepath.replace(/\\/g, '/').replace(/^uploads\//, '')
-  fs.promises.unlink(path.join('./imagefolder', relative)).catch(() => {})
-}
+// `uploads/<categoryId>/<name>`. Re-exported from ../storedFiles.js so test
+// cleanup maps files into the (temp) upload directory just like the app does.
+export { unlinkStoredFile }
 
 export async function deleteImageById(id) {
   if (!id) return
@@ -72,3 +68,9 @@ export async function signupUser(username, email, password) {
     .send({ username, email, password })
   return res
 }
+
+// Close the connection pool when a test file is done. Without this, the
+// process (single serial worker) never exits after the last suite.
+afterAll(async () => {
+  await pg.$pool.end().catch(() => {})
+});

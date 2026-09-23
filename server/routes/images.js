@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import 'dotenv/config'
 import pg from '../db.js'
 import pgPromise from "pg-promise";
-import { unlinkStoredFile } from '../storedFiles.js'
+import { UPLOAD_DIR, unlinkStoredFile } from '../storedFiles.js'
 
 const PQ = pgPromise.ParameterizedQuery
 
@@ -156,7 +156,7 @@ router.post("/", async (req, res) => {
     const safeName = baseName.replace(/[^A-Za-z0-9._-]/g, '_');
 
     const file = req.files.files;
-    const storeDir = `./imagefolder/${categoryId}`;
+    const storeDir = `${UPLOAD_DIR}/${categoryId}`;
     const storedPath = `uploads/${categoryId}/${safeName}`;
     const fullPath = `${storeDir}/${safeName}`;
 

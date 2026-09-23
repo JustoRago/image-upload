@@ -1,6 +1,8 @@
 import app from '../server'
 import request from 'supertest'
 import fs from 'node:fs'
+import path from 'node:path'
+import { UPLOAD_DIR } from '../storedFiles.js'
 import {
   TINY_PNG,
   unique,
@@ -281,7 +283,7 @@ describe('images routes', () => {
       const search = await request(app).get(`/api/v1/images?search=${encodeURIComponent(imgName)}`)
       const id = search.body.body.find((i) => i.img_name === imgName).id
 
-      const fileName = `./imagefolder/${categoryId}/own-delete.png`
+      const fileName = path.join(UPLOAD_DIR, String(categoryId), 'own-delete.png')
       expect(fs.statSync(fileName).isFile()).toBe(true)
 
       const res = await sessionUser.delete(`/api/v1/images/${id}`)

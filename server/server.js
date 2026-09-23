@@ -14,6 +14,7 @@ import imagesRoutes from './routes/images.js'
 import categoriesRoutes from './routes/categories.js'
 import usersRoutes from './routes/users.js'
 import { seedDefaultUser } from './seed.js'
+import { UPLOAD_DIR } from './storedFiles.js'
 
 const corsOptions = {
   origin: process.env.CLIENT_ORIGIN || 'http://localhost:3000',
@@ -28,7 +29,9 @@ app.use(cors(corsOptions));
 // Brute-force guard for the credential endpoints.
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 30,
+  // The test suite logs in dozens of times, so the limiter only bites in
+  // real (dev/prod) processes.
+  limit: process.env.NODE_ENV === 'test' ? 500 : 30,
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: { status: "failed", message: "Too many attempts. Try again in a few minutes." },
@@ -68,10 +71,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Only expose uploaded images (under /uploads), not the whole server directory.
-app.use('/uploads', express.static('./imagefolder'))
+app.use('/uploads', express.static(UPLOAD_DIR))
 // Back-compat: rows saved before the /uploads change stored filepaths as
 // './imagefolder/...' — keep those servable too.
-app.use('/imagefolder', express.static('./imagefolder'))
+app.use('/imagefolder', express.static(UPLOAD_DIR))
 
 const cryptography = `CREATE EXTENSION IF NOT EXISTS pgcrypto`
 
@@ -145,6 +148,24 @@ async function createCategoryUniquenessIndexes() {
   }
 }
 
+// Usernames must be unique. Signup already checks first, but a unique index
+// backs that up so parallel test workers (or racing requests) can never
+// register the same username twice. Skipped with a warning if a legacy
+// database still holds duplicates.
+async function createUsernameUniquenessIndex() {
+  const dupes = await pg.any(
+    `SELECT username, COUNT(*) AS n
+     FROM users GROUP BY username HAVING COUNT(*) > 1`
+  );
+  if (dupes.length) {
+    console.warn(
+      `Skipping username uniqueness index — duplicate usernames exist: ${dupes.map((d) => d.username).join(', ')}`
+    );
+    return;
+  }
+  await pg.any(`CREATE UNIQUE INDEX IF NOT EXISTS users_username_key ON users (username)`);
+}
+
 async function initializeDatabase() {
   try {
     await pg.any(cryptography)
@@ -154,6 +175,7 @@ async function initializeDatabase() {
     // Schema evolution for databases created before updated_at existed:
     // CREATE TABLE IF NOT EXISTS does not alter existing tables.
     await pg.any(`ALTER TABLE images ADD COLUMN IF NOT EXISTS updated_at timestamp`)
+    await createUsernameUniquenessIndex()
     await createCategoryUniquenessIndexes()
     await seedDefaultUser()
     console.log('Database initialization complete')
@@ -163,7 +185,10 @@ async function initializeDatabase() {
   }
 }
 
-initializeDatabase();
+// Top-level await: the app is only exported (and only starts serving) after
+// the database is initialized. Tests import this module and must not race the
+// schema/seed step, especially on a freshly-created test database.
+await initializeDatabase();
 
 app.use("/api/v1/images", imagesRoutes)
 app.use("/api/v1/categories", categoriesRoutes)

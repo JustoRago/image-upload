@@ -131,6 +131,20 @@ Duplicates are rejected with `409` both by the route and by database indexes (`c
 - **Session fixation** is prevented: a fresh session id is generated on login.
 - Uploads are capped at **10 MB**, restricted to real image formats via **magic-byte sniffing**, and filenames are sanitized against path traversal.
 - Usernames/passwords/images/category names are length-limited via `express-validator`.
+- Usernames are globally unique — a database index backs up the signup check.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Testing
+
+The server test suite (`npm test` in `server/`) never touches your development data. It runs against its own database and its own temporary upload folder:
+
+- **Dedicated database** — `<your DB name>_test` (e.g. `imagestore_test`). A Jest `globalSetup` creates it on first run and drops/recreates its schema before every run, so tests always start from a clean slate; the development database is never modified.
+- **Separate upload folder** — uploads made by tests go to a temporary directory that is wiped after the run, so your real `imagefolder/` is untouched.
+- **Serial execution** (`maxWorkers: 1`) — suites are run one at a time because each test file initializes the schema, and parallel creation of the same tables/indexes is not atomic.
+- The app awaits database initialization before serving, and closes its connection pool at the end of each suite so the run terminates cleanly.
+
+Requirements: the Postgres role must be able to create databases (or `imagestore_test` must already exist and be owned by the role). Point the suite at a different database with `TEST_DBNAME` if you want an explicit name.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
