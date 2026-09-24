@@ -1,4 +1,4 @@
-export const BASE_URL = 'http://localhost:5000';
+export const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 export const mainClass = 'flex flex-col items-center gap-8';
 export const h1Class = 'text-2xl text-white font-bold';
 export const pClass = 'text-xl text-white font-bold';
