@@ -12,7 +12,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "connect-pg-simple": "^9.0.1",
     "cors": "^2.8.5",

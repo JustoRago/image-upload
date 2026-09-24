@@ -1,5 +1,4 @@
 <div align="center">
-  <img src="./src/assets/doctors Icon.png" alt="logo" width="140"  height="auto" />
   <br/>
 
   <h3><b>Image Storage App</b></h3>
@@ -21,7 +20,7 @@
 
 <!-- PROJECT DESCRIPTION -->
 
-# 📖 Doctors Reservations Front-end <a name="about-project"></a>
+# 📖 Image Storage App <a name="about-project"></a>
 
 
 **Image-Storage-App** allows user to sign up, and log in. When logged in may create categories, public or private, and place images within those categories.
@@ -80,7 +79,11 @@ Organized as effectively two separate projects stored in one repository. Server 
 
 ## Usage
 
-Client and server must also be started separately. Use http://127.0.0.1:3000/ when running locally to avoid CORS problems.
+Client and server must also be started separately.
+
+- The server listens on `http://localhost:5000`.
+- The client calls the API at the URL in `REACT_APP_API_URL` (default `http://localhost:5000`), which you can override in `client/.env.local` — see [client/.env.example](client/.env.example). Remember to set the same value for deployed builds (e.g. a Netlify environment variable).
+- The server's CORS allowlist comes from `CLIENT_ORIGIN` (default `http://localhost:3000`). The origin the browser actually uses must match it — if you open the app at `http://127.0.0.1:3000`, also set `CLIENT_ORIGIN=http://127.0.0.1:3000` in `server/.env`.
 
 On first start the server seeds a default user so a fresh database is immediately usable:
 
