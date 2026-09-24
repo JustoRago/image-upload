@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import 'dotenv/config'
 import pg from '../db.js'
 import pgPromise from "pg-promise";
-import { UPLOAD_DIR, unlinkStoredFile } from '../storedFiles.js'
+import { UPLOAD_DIR, uniqueStoredName, unlinkStoredFile } from '../storedFiles.js'
 
 const PQ = pgPromise.ParameterizedQuery
 
@@ -126,6 +126,9 @@ router.post("/", async (req, res) => {
     if (!req.files?.files) {
       return res.status(400).send({ status: "failed", message: "No file uploaded" });
     }
+    if (Array.isArray(req.files.files)) {
+      return res.status(400).send({ status: "failed", message: "Only one file per upload is allowed" });
+    }
     if (!req.body.img_name) {
       return res.status(400).send({ status: "failed", message: "img_name is required" });
     }
@@ -157,8 +160,12 @@ router.post("/", async (req, res) => {
 
     const file = req.files.files;
     const storeDir = `${UPLOAD_DIR}/${categoryId}`;
-    const storedPath = `uploads/${categoryId}/${safeName}`;
-    const fullPath = `${storeDir}/${safeName}`;
+    // Two uploads can share a display filename, so the on-disk name gets a
+    // unique prefix — otherwise the second upload would overwrite the first
+    // and deleting either image would remove the file the other row needs.
+    const uniqueName = uniqueStoredName(safeName);
+    const storedPath = `uploads/${categoryId}/${uniqueName}`;
+    const fullPath = `${storeDir}/${uniqueName}`;
 
     await file.mv(fullPath);
     try {

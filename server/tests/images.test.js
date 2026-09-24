@@ -1,8 +1,8 @@
 import app from '../server'
 import request from 'supertest'
 import fs from 'node:fs'
-import path from 'node:path'
-import { UPLOAD_DIR } from '../storedFiles.js'
+import pg from '../db.js'
+import { storedFilePath } from '../storedFiles.js'
 import {
   TINY_PNG,
   unique,
@@ -122,6 +122,16 @@ describe('images routes', () => {
         .attach('files', TINY_PNG, 'noname.png')
       expect(res.status).toBe(400)
       expect(res.body.message).toBe('img_name is required')
+    });
+
+    it('rejects multiple files in one request', async () => {
+      const res = await sessionUser.post('/api/v1/images')
+        .field('img_name', unique('multifile'))
+        .field('category', categoryId)
+        .attach('files', TINY_PNG, 'one.png')
+        .attach('files', TINY_PNG, 'two.png')
+      expect(res.status).toBe(400)
+      expect(res.body.message).toMatch(/one file/i)
     });
 
     it('rejects uploads into an invalid category', async () => {
@@ -283,7 +293,8 @@ describe('images routes', () => {
       const search = await request(app).get(`/api/v1/images?search=${encodeURIComponent(imgName)}`)
       const id = search.body.body.find((i) => i.img_name === imgName).id
 
-      const fileName = path.join(UPLOAD_DIR, String(categoryId), 'own-delete.png')
+      const rows = await pg.any('SELECT filepath FROM images WHERE id = $1', [id])
+      const fileName = storedFilePath(rows[0].filepath)
       expect(fs.statSync(fileName).isFile()).toBe(true)
 
       const res = await sessionUser.delete(`/api/v1/images/${id}`)
@@ -293,6 +304,45 @@ describe('images routes', () => {
       const check = await request(app).get(`/api/v1/images?id=${id}`)
       expect(check.body.body).toEqual([])
       expect(fs.existsSync(fileName)).toBe(false)
+    });
+  });
+
+  describe('duplicate filenames do not collide on disk', () => {
+    it('stores two same-named files separately and deletes only the right one', async () => {
+      const first = unique('dupname')
+      const second = unique('dupsamefile')
+
+      const up1 = await sessionUser.post('/api/v1/images')
+        .field('img_name', first)
+        .field('category', categoryId)
+        .attach('files', TINY_PNG, 'same-name.png')
+      expect(up1.status).toBe(200)
+
+      const up2 = await sessionUser.post('/api/v1/images')
+        .field('img_name', second)
+        .field('category', categoryId)
+        .attach('files', TINY_PNG, 'same-name.png')
+      expect(up2.status).toBe(200)
+
+      const search1 = await request(app).get(`/api/v1/images?search=${encodeURIComponent(first)}`)
+      const r1 = search1.body.body.find((i) => i.img_name === first)
+      const search2 = await request(app).get(`/api/v1/images?search=${encodeURIComponent(second)}`)
+      const r2 = search2.body.body.find((i) => i.img_name === second)
+
+      expect(r1).toBeDefined()
+      expect(r2).toBeDefined()
+      // Distinct stored filepaths, and both files actually exist on disk.
+      expect(r1.filepath).not.toBe(r2.filepath)
+      expect(fs.statSync(storedFilePath(r1.filepath)).isFile()).toBe(true)
+      expect(fs.statSync(storedFilePath(r2.filepath)).isFile()).toBe(true)
+
+      // Deleting the first leaves the second's file intact.
+      const del = await sessionUser.delete(`/api/v1/images/${r1.id}`)
+      expect(del.status).toBe(200)
+      expect(fs.existsSync(storedFilePath(r1.filepath))).toBe(false)
+      expect(fs.statSync(storedFilePath(r2.filepath)).isFile()).toBe(true)
+
+      await sessionUser.delete(`/api/v1/images/${r2.id}`)
     });
   });
 

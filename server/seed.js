@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import pg from './db.js'
-import { UPLOAD_DIR } from './storedFiles.js'
+import { UPLOAD_DIR, uniqueStoredName } from './storedFiles.js'
 
 // A 1x1 transparent PNG so seeded images are real, servable files.
 const TINY_PNG = Buffer.from(
@@ -112,7 +112,10 @@ export async function seedImages(userId, categories) {
       continue
     }
 
-    const fileName = `${img.img_name.toLowerCase().replace(/[^a-z0-9._-]+/g, '-')}.png`
+    // Keep seeded files on disk distinct from any user uploads that may share
+    // a filename (see uniqueStoredName), so neither can overwrite the other.
+    const cleanName = `${img.img_name.toLowerCase().replace(/[^a-z0-9._-]+/g, '-')}.png`
+    const fileName = uniqueStoredName(cleanName)
     const fullDir = path.join(UPLOAD_DIR, String(cat.id))
     const storedPath = `uploads/${cat.id}/${fileName}`
 
