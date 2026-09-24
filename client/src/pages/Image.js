@@ -5,8 +5,7 @@ import { getImages, deleteImage, updateImage } from '../redux/images/imagesSlice
 import { mainClass, pClass, imageUrl, inputClass, submitButtonClass, errorPClass } from '../constants';
 
 const Image = () => {
-  const [image, setImage] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [ready, setReady] = useState(false);
   const [editing, setEditing] = useState(false);
   const [newName, setNewName] = useState('');
   const [error, setError] = useState('');
@@ -14,20 +13,16 @@ const Image = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const user = useSelector((state) => state.sessionReducer.user);
+  const image = useSelector((state) => state.imagesReducer.images?.[0] ?? null);
 
   useEffect(() => {
     let active = true;
 
     const getImage = async () => {
-      setLoading(true)
-      const result = await dispatch(getImages(`id=${id}`))
-
-      if (active && result.payload?.body?.[0]) {
-        setImage(result.payload.body[0]);
-        setNewName(result.payload.body[0].img_name);
-      }
+      setReady(false);
+      await dispatch(getImages(`id=${id}`));
       if (active) {
-        setLoading(false);
+        setReady(true);
       }
     };
 
@@ -36,8 +31,15 @@ const Image = () => {
     }
     return () => {
       active = false;
-    }
+    };
   }, [id, dispatch]);
+
+  // Keep the rename field in sync with the stored image name.
+  useEffect(() => {
+    if (!editing && image?.img_name) {
+      setNewName(image.img_name);
+    }
+  }, [image, editing]);
 
   const isOwner = Boolean(user && image && user.id === image.upload_id);
 
@@ -50,7 +52,6 @@ const Image = () => {
     }
     const resp = await dispatch(updateImage({ id, img_name: name }));
     if (resp.payload?.status === 'success' && resp.payload?.body?.[0]) {
-      setImage(resp.payload.body[0]);
       setEditing(false);
       setError('');
     } else {
@@ -68,7 +69,7 @@ const Image = () => {
     }
   };
 
-  if (loading) {
+  if (!ready) {
     return <main className={mainClass}>Loading...</main>;
   }
 

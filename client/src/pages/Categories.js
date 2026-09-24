@@ -5,23 +5,17 @@ import { NavLink } from 'react-router-dom';
 import { mainClass, h1Class, inputClass, errorPClass } from '../constants';
 
 const Categories = () => {
-  const [categories, setCategories] = useState([])
   const [editingId, setEditingId] = useState(null)
   const [editName, setEditName] = useState('')
   const [editPrivate, setEditPrivate] = useState(false)
   const [message, setMessage] = useState('')
 
   const user = useSelector((state) => state.sessionReducer.user)
+  const categories = useSelector((state) => state.categoriesReducer.categories ?? [])
   const dispatch = useDispatch();
 
-  const load = async () => {
-    const categoryArray = await dispatch(getCategories())
-    setCategories(categoryArray.payload?.data?.categories || [])
-  }
-
   useEffect(() => {
-    load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    dispatch(getCategories())
   }, [dispatch])
 
   const startEditing = (category) => {
@@ -41,7 +35,7 @@ const Categories = () => {
     const resp = await dispatch(updateCategory({ id: editingId, category: name, privacy: editPrivate }))
     if (resp.payload?.status === 'success') {
       setEditingId(null)
-      await load()
+      setMessage('')
     } else {
       setMessage(resp.payload?.message || 'Could not update category')
     }
@@ -51,7 +45,7 @@ const Categories = () => {
     if (!window.confirm(`Delete category "${category.categoryname}"? This cannot be undone.`)) return
     const resp = await dispatch(deleteCategory(category.id))
     if (resp.payload?.status === 'success') {
-      await load()
+      setMessage('')
     } else {
       setMessage(resp.payload?.message || 'Could not delete category')
     }

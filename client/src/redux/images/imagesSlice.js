@@ -1,63 +1,44 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { BASE_URL } from '../../constants';
+import { apiFetch } from '../../api';
 
-const getImages = createAsyncThunk('images/getImage', async (params) => {
-  const resp = await fetch(`${BASE_URL}/api/v1/images?${params}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: "include",
-  })
-    .then((resp) => resp.json())
-  return resp;
+const getImages = createAsyncThunk('images/getImage', async (params, { rejectWithValue }) => {
+  try {
+    return await apiFetch(`/api/v1/images?${params}`);
+  } catch (err) {
+    return rejectWithValue(err.body || { message: err.message });
+  }
 });
 
-const getImagesPerCategory = createAsyncThunk('images/getImagesPerCategory', async (cat) => {
-  const resp = await fetch(`${BASE_URL}/api/v1/images/${cat}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: "include",
-  })
-    .then((resp) => resp.json());
-  return resp;
-})
-
-const addImage = createAsyncThunk('images/addImage', async (obj) => {
-  const response = await fetch(`${BASE_URL}/api/v1/images`, {
-    method: 'POST',
-    credentials: "include",
-    body: obj,
-  })
-    .then((response) => response.json())
-  return response;
+const getImagesPerCategory = createAsyncThunk('images/getImagesPerCategory', async (cat, { rejectWithValue }) => {
+  try {
+    return await apiFetch(`/api/v1/images/${cat}`);
+  } catch (err) {
+    return rejectWithValue(err.body || { message: err.message });
+  }
 });
 
-const updateImage = createAsyncThunk('images/updateImage', async ({ id, img_name }) => {
-  const response = await fetch(`${BASE_URL}/api/v1/images/${id}`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: "include",
-    body: JSON.stringify({ img_name }),
-  })
-    .then((response) => response.json())
-  return response;
+const addImage = createAsyncThunk('images/addImage', async (obj, { rejectWithValue }) => {
+  try {
+    return await apiFetch('/api/v1/images', { method: 'POST', body: obj });
+  } catch (err) {
+    return rejectWithValue(err.body || { message: err.message });
+  }
 });
 
-const deleteImage = createAsyncThunk('images/deleteImage', async (id) => {
-  const response = await fetch(`${BASE_URL}/api/v1/images/${id}`, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: "include",
-  })
-    .then((response) => response.json())
-  return response;
+const updateImage = createAsyncThunk('images/updateImage', async ({ id, img_name }, { rejectWithValue }) => {
+  try {
+    return await apiFetch(`/api/v1/images/${id}`, { method: 'PATCH', body: { img_name } });
+  } catch (err) {
+    return rejectWithValue(err.body || { message: err.message });
+  }
+});
+
+const deleteImage = createAsyncThunk('images/deleteImage', async (id, { rejectWithValue }) => {
+  try {
+    return await apiFetch(`/api/v1/images/${id}`, { method: 'DELETE' });
+  } catch (err) {
+    return rejectWithValue(err.body || { message: err.message });
+  }
 });
 
 const imagesSlice = createSlice({
@@ -75,13 +56,13 @@ const imagesSlice = createSlice({
     builder.addCase(getImages.fulfilled, (state, action) => ({
       ...state,
       loading: false,
-      image: action.payload,
+      images: action.payload?.body ?? [],
     }));
     builder.addCase(getImages.rejected, (state, action) => ({
       ...state,
       loading: false,
       images: [],
-      error: action.error.message,
+      error: action.payload?.message || action.error.message,
     }));
     builder.addCase(getImagesPerCategory.pending, (state) => ({
       ...state,
@@ -90,13 +71,13 @@ const imagesSlice = createSlice({
     builder.addCase(getImagesPerCategory.fulfilled, (state, action) => ({
       ...state,
       loading: false,
-      image: action.payload,
+      images: action.payload?.body ?? [],
     }));
     builder.addCase(getImagesPerCategory.rejected, (state, action) => ({
       ...state,
       loading: false,
       images: [],
-      error: action.error.message,
+      error: action.payload?.message || action.error.message,
     }));
     builder.addCase(addImage.pending, (state) => ({
       ...state,
@@ -109,7 +90,39 @@ const imagesSlice = createSlice({
     builder.addCase(addImage.rejected, (state, action) => ({
       ...state,
       loading: false,
-      error: action.error.message,
+      error: action.payload?.message || action.error.message,
+    }));
+    builder.addCase(updateImage.pending, (state) => ({
+      ...state,
+      loading: true,
+    }));
+    builder.addCase(updateImage.fulfilled, (state, action) => ({
+      ...state,
+      loading: false,
+      images: state.images.map((img) =>
+        img.id === action.meta.arg.id
+          ? { ...img, ...(action.payload?.body?.[0] || {}) }
+          : img
+      ),
+    }));
+    builder.addCase(updateImage.rejected, (state, action) => ({
+      ...state,
+      loading: false,
+      error: action.payload?.message || action.error.message,
+    }));
+    builder.addCase(deleteImage.pending, (state) => ({
+      ...state,
+      loading: true,
+    }));
+    builder.addCase(deleteImage.fulfilled, (state, action) => ({
+      ...state,
+      loading: false,
+      images: state.images.filter((img) => img.id !== action.meta.arg),
+    }));
+    builder.addCase(deleteImage.rejected, (state, action) => ({
+      ...state,
+      loading: false,
+      error: action.payload?.message || action.error.message,
     }));
   },
 });

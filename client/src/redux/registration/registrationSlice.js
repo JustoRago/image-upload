@@ -1,20 +1,12 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { BASE_URL } from "../../constants";
+import { apiFetch } from "../../api";
 
 const createRegistration = createAsyncThunk('registration/createRegistration', async (obj, { rejectWithValue }) => {
-  const response = await fetch(`${BASE_URL}/api/v1/users/signup`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(obj),
-    credentials: 'include',
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Signup failed' }));
-    return rejectWithValue(error);
+  try {
+    return await apiFetch('/api/v1/users/signup', { method: 'POST', body: obj });
+  } catch (err) {
+    return rejectWithValue(err.body || { message: err.message });
   }
-  return response.json();
 })
 
 const registrationSlice = createSlice({
@@ -38,7 +30,7 @@ const registrationSlice = createSlice({
       ...state,
       loading: false,
       user: null,
-      error: action.error.message,
+      error: action.payload?.message || action.error.message,
     }));
   }
 })

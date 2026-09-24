@@ -1,63 +1,44 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { BASE_URL } from '../../constants';
+import { apiFetch } from '../../api';
 
-const getCategories = createAsyncThunk('categories/getCategory', async () => {
-  const resp = await fetch(`${BASE_URL}/api/v1/categories`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: "include",
-  })
-    .then((resp) => resp.json())
-  return resp;
+const getCategories = createAsyncThunk('categories/getCategory', async (_, { rejectWithValue }) => {
+  try {
+    return await apiFetch('/api/v1/categories');
+  } catch (err) {
+    return rejectWithValue(err.body || { message: err.message });
+  }
 });
 
-const getCategoryById = createAsyncThunk('categories/getCategoryById', async (id) => {
-  const resp = await fetch(`${BASE_URL}/api/v1/categories/${id}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: "include",
-  })
-    .then((resp) => resp.json())
-  return resp;
-})
-
-const addCategory = createAsyncThunk('categories/addCategory', async (obj) => {
-  const response = await fetch(`${BASE_URL}/api/v1/categories`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: "include",
-    body: JSON.stringify(obj),
-  });
-  return response.json();
+const getCategoryById = createAsyncThunk('categories/getCategoryById', async (id, { rejectWithValue }) => {
+  try {
+    return await apiFetch(`/api/v1/categories/${id}`);
+  } catch (err) {
+    return rejectWithValue(err.body || { message: err.message });
+  }
 });
 
-const updateCategory = createAsyncThunk('categories/updateCategory', async ({ id, category, privacy }) => {
-  const response = await fetch(`${BASE_URL}/api/v1/categories/${id}`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: "include",
-    body: JSON.stringify({ category, privacy }),
-  });
-  return response.json();
+const addCategory = createAsyncThunk('categories/addCategory', async (obj, { rejectWithValue }) => {
+  try {
+    return await apiFetch('/api/v1/categories', { method: 'POST', body: obj });
+  } catch (err) {
+    return rejectWithValue(err.body || { message: err.message });
+  }
 });
 
-const deleteCategory = createAsyncThunk('categories/deleteCategory', async (id) => {
-  const response = await fetch(`${BASE_URL}/api/v1/categories/${id}`, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: "include",
-  });
-  return response.json();
+const updateCategory = createAsyncThunk('categories/updateCategory', async ({ id, category, privacy }, { rejectWithValue }) => {
+  try {
+    return await apiFetch(`/api/v1/categories/${id}`, { method: 'PATCH', body: { category, privacy } });
+  } catch (err) {
+    return rejectWithValue(err.body || { message: err.message });
+  }
+});
+
+const deleteCategory = createAsyncThunk('categories/deleteCategory', async (id, { rejectWithValue }) => {
+  try {
+    return await apiFetch(`/api/v1/categories/${id}`, { method: 'DELETE' });
+  } catch (err) {
+    return rejectWithValue(err.body || { message: err.message });
+  }
 });
 
 const categorySlice = createSlice({
@@ -65,7 +46,8 @@ const categorySlice = createSlice({
   initialState: {
     loading: false,
     categories: [],
-    currentCategory: {},
+    currentCategory: null,
+    error: null,
   },
   extraReducers: (builder) => {
     builder.addCase(getCategories.pending, (state) => ({
@@ -75,13 +57,13 @@ const categorySlice = createSlice({
     builder.addCase(getCategories.fulfilled, (state, action) => ({
       ...state,
       loading: false,
-      categories: action.payload,
+      categories: action.payload?.data?.categories ?? [],
     }));
     builder.addCase(getCategories.rejected, (state, action) => ({
       ...state,
       loading: false,
       categories: [],
-      error: action.error.message,
+      error: action.payload?.message || action.error.message,
     }));
     builder.addCase(getCategoryById.pending, (state) => ({
       ...state,
@@ -90,13 +72,13 @@ const categorySlice = createSlice({
     builder.addCase(getCategoryById.fulfilled, (state, action) => ({
       ...state,
       loading: false,
-      currentCategory: action.payload,
+      currentCategory: action.payload?.data?.category?.[0] ?? null,
     }));
     builder.addCase(getCategoryById.rejected, (state, action) => ({
       ...state,
       loading: false,
-      currentCategory: {},
-      error: action.error.message,
+      currentCategory: null,
+      error: action.payload?.message || action.error.message,
     }));
     builder.addCase(addCategory.pending, (state) => ({
       ...state,
@@ -109,7 +91,49 @@ const categorySlice = createSlice({
     builder.addCase(addCategory.rejected, (state, action) => ({
       ...state,
       loading: false,
-      error: action.error.message,
+      error: action.payload?.message || action.error.message,
+    }));
+    builder.addCase(updateCategory.pending, (state) => ({
+      ...state,
+      loading: true,
+    }));
+    builder.addCase(updateCategory.fulfilled, (state, action) => ({
+      ...state,
+      loading: false,
+      categories: state.categories.map((c) =>
+        c.id === action.meta.arg.id
+          ? {
+              ...c,
+              categoryname: action.payload?.data?.name ?? c.categoryname,
+              private: action.payload?.data?.private ?? c.private,
+            }
+          : c
+      ),
+      currentCategory:
+        state.currentCategory?.id === action.meta.arg.id
+          ? { ...state.currentCategory, ...action.payload?.data }
+          : state.currentCategory,
+    }));
+    builder.addCase(updateCategory.rejected, (state, action) => ({
+      ...state,
+      loading: false,
+      error: action.payload?.message || action.error.message,
+    }));
+    builder.addCase(deleteCategory.pending, (state) => ({
+      ...state,
+      loading: true,
+    }));
+    builder.addCase(deleteCategory.fulfilled, (state, action) => ({
+      ...state,
+      loading: false,
+      categories: state.categories.filter((c) => c.id !== action.meta.arg),
+      currentCategory:
+        state.currentCategory?.id === action.meta.arg ? null : state.currentCategory,
+    }));
+    builder.addCase(deleteCategory.rejected, (state, action) => ({
+      ...state,
+      loading: false,
+      error: action.payload?.message || action.error.message,
     }));
   },
 });

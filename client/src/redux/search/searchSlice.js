@@ -1,23 +1,20 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { BASE_URL } from '../../constants';
+import { apiFetch } from '../../api';
 
-const searchImages = createAsyncThunk('images/searchImages', async (obj) => {
-  const resp = await fetch(`${BASE_URL}/api/v1/images?search=${encodeURIComponent(obj)}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: "include",
-  })
-    .then((resp) => resp.json());
-  return resp;
-})
+const searchImages = createAsyncThunk('images/searchImages', async (query, { rejectWithValue }) => {
+  try {
+    return await apiFetch(`/api/v1/images?search=${encodeURIComponent(query)}`);
+  } catch (err) {
+    return rejectWithValue(err.body || { message: err.message });
+  }
+});
 
 const searchSlice = createSlice({
   name: 'search',
   initialState: {
     loading: false,
-    images: []
+    images: [],
+    error: null,
   },
   extraReducers: (builder) => {
     builder.addCase(searchImages.pending, (state) => ({
@@ -27,13 +24,13 @@ const searchSlice = createSlice({
     builder.addCase(searchImages.fulfilled, (state, action) => ({
       ...state,
       loading: false,
-      image: action.payload.body,
+      images: action.payload?.body ?? [],
     }));
     builder.addCase(searchImages.rejected, (state, action) => ({
       ...state,
       loading: false,
       images: [],
-      error: action.error.message,
+      error: action.payload?.message || action.error.message,
     }));
   },
 });

@@ -1,77 +1,38 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { BASE_URL } from '../../constants';
+import { apiFetch } from '../../api';
 
 const createSession = createAsyncThunk('session/createSession', async (obj, { rejectWithValue }) => {
-  const response = await fetch(`${BASE_URL}/api/v1/users/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(obj),
-    credentials: 'include',
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Login failed' }));
-    return rejectWithValue(error);
+  try {
+    return await apiFetch('/api/v1/users/login', { method: 'POST', body: obj });
+  } catch (err) {
+    return rejectWithValue(err.body || { message: err.message });
   }
-  return response.json();
-})
+});
 
 const destroySession = createAsyncThunk('session/destroySession', async () => {
-  await fetch(`${BASE_URL}/api/v1/users/logout`, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-  });
-  return null
-})
+  await apiFetch('/api/v1/users/logout', { method: 'DELETE' });
+  return null;
+});
 
 const checkSession = createAsyncThunk('session/checkSession', async () => {
-  const response = await fetch(`${BASE_URL}/api/v1/users`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: "include",
-  });
-  if (!response.ok) {
-    throw new Error(`Session check failed: ${response.status}`);
-  }
-  return response.json();
-})
+  return await apiFetch('/api/v1/users');
+});
 
 const updatePassword = createAsyncThunk('session/updatePassword', async (obj, { rejectWithValue }) => {
-  const response = await fetch(`${BASE_URL}/api/v1/users/password`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-    body: JSON.stringify(obj),
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Could not update password' }));
-    return rejectWithValue(error);
+  try {
+    return await apiFetch('/api/v1/users/password', { method: 'PATCH', body: obj });
+  } catch (err) {
+    return rejectWithValue(err.body || { message: err.message });
   }
-  return response.json();
-})
+});
 
 const deleteAccount = createAsyncThunk('session/deleteAccount', async (_, { rejectWithValue }) => {
-  const response = await fetch(`${BASE_URL}/api/v1/users/account`, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Could not delete account' }));
-    return rejectWithValue(error);
+  try {
+    return await apiFetch('/api/v1/users/account', { method: 'DELETE' });
+  } catch (err) {
+    return rejectWithValue(err.body || { message: err.message });
   }
-  return response.json();
-})
+});
 
 const sessionSlice = createSlice({
   name: 'session',
@@ -109,7 +70,7 @@ const sessionSlice = createSlice({
       ...state,
       loading: false,
       user: null,
-      error: action.error.message,
+      error: action.payload?.message || action.error.message,
     }));
     builder.addCase(destroySession.pending, (state) => ({
       ...state,
@@ -124,7 +85,7 @@ const sessionSlice = createSlice({
       ...state,
       loading: false,
       user: null,
-      error: action.error.message,
+      error: action.payload?.message || action.error.message,
     }));
     builder.addCase(deleteAccount.fulfilled, (state) => ({
       ...state,
@@ -132,7 +93,7 @@ const sessionSlice = createSlice({
       user: null,
     }));
   }
-})
+});
 
 export { checkSession, createSession, destroySession, updatePassword, deleteAccount };
 export default sessionSlice.reducer;

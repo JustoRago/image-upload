@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useDispatch } from 'react-redux';
+import React, { useEffect } from "react";
+import { useDispatch, useSelector } from 'react-redux';
 import { getCategoryById } from '../redux/categories/categorySlice';
 import { getImagesPerCategory } from "../redux/images/imagesSlice";
 import { useParams } from "react-router-dom";
@@ -8,33 +8,13 @@ import { mainClass, h1Class, pClass, imageUrl } from "../constants";
 const Category = () => {
   let { categoryId } = useParams()
 
-  const [category, setCategory] = useState(null)
-  const [images, setImages] = useState([])
-
+  const category = useSelector((state) => state.categoriesReducer.currentCategory)
+  const images = useSelector((state) => state.imagesReducer.images ?? [])
   const dispatch = useDispatch();
 
   useEffect(() => {
-    let active = true;
-
-    const getCategoryImages = async () => {
-      const categoryImages = await dispatch(getImagesPerCategory(categoryId))
-      if (active && categoryImages.payload?.body) {
-        setImages(categoryImages.payload.body)
-      }
-    }
-
-    const getCategoryData = async () => {
-      const categoryData = await dispatch(getCategoryById(categoryId))
-      if (active && categoryData.payload?.data?.category?.[0]) {
-        setCategory(categoryData.payload.data.category[0]);
-      }
-    }
-
-    getCategoryData()
-    getCategoryImages()
-    return () => {
-      active = false;
-    }
+    dispatch(getCategoryById(categoryId))
+    dispatch(getImagesPerCategory(categoryId))
   }, [categoryId, dispatch])
 
   return (

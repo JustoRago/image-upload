@@ -1,22 +1,21 @@
 import { searchImages } from "../redux/search/searchSlice";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { mainClass, h1Class, pClass, imageUrl } from "../constants";
 import { useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 const Search = () => {
   const dispatch = useDispatch()
   const search = useLocation().search;
   const query = new URLSearchParams(search).get("query")
-  const [images, setImages] = useState([])
+  const storedImages = useSelector((state) => state.searchReducer.images ?? [])
+  // Without a query there are no results to show, even if the store still
+  // holds a previous search.
+  const images = query ? storedImages : []
 
   useEffect(() => {
-    const load = async () => {
-      if (!query) return;
-      const results = await dispatch(searchImages(query))
-      if (results.payload?.body) setImages(results.payload.body)
-    }
-    load()
+    if (!query) return;
+    dispatch(searchImages(query))
   }, [dispatch, query])
 
   return (

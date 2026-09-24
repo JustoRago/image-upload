@@ -1,20 +1,14 @@
-import React, { useEffect, useState } from 'react'
-import { useDispatch } from 'react-redux';
+import React, { useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux';
 import { getImages } from '../redux/images/imagesSlice';
 import { mainClass, h1Class, pClass, imageUrl } from '../constants';
 
 const Main = () => {
-  const [image, setImage] = useState(null);
+  const image = useSelector((state) => state.imagesReducer.images?.[0] ?? null);
   const dispatch = useDispatch();
 
   useEffect(() => {
-    const load = async () => {
-      const randomImage = await dispatch(getImages('random=true'))
-      if (randomImage.payload?.body?.[0]) {
-        setImage(randomImage.payload.body[0])
-      }
-    }
-    load()
+    dispatch(getImages('random=true'))
   }, [dispatch])
 
   return (

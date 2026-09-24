@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { useDispatch } from 'react-redux';
+import React, { useEffect } from "react";
+import { useDispatch, useSelector } from 'react-redux';
 import { getCategories } from "../redux/categories/categorySlice";
 import { useForm } from "react-hook-form";
 import { addImage } from "../redux/images/imagesSlice";
@@ -8,7 +8,7 @@ import { checkSession } from "../redux/session/sessionSlice";
 import { mainClass, h1Class, formClass, labelClass } from "../constants";
 
 const Upload = () => {
-  const [categories, setCategories] = useState([])
+  const categories = useSelector((state) => state.categoriesReducer.categories ?? [])
   const { register, handleSubmit } = useForm();
   const dispatch = useDispatch()
   const navigate = useNavigate()
@@ -19,8 +19,7 @@ const Upload = () => {
       if (!session.payload?.user) {
         navigate('/')
       }
-      const categoryArray = await dispatch(getCategories())
-      setCategories(categoryArray.payload?.data?.categories || [])
+      dispatch(getCategories())
     }
     load()
   }, [dispatch, navigate])
