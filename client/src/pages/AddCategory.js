@@ -3,11 +3,12 @@ import { useDispatch } from 'react-redux';
 import { addCategory } from '../redux/categories/categorySlice';
 import { useNavigate } from 'react-router-dom';
 import { checkSession } from '../redux/session/sessionSlice';
-import { mainClass, h1Class, formClass } from '../constants';
+import { mainClass, h1Class, formClass, errorPClass } from '../constants';
 
 const AddCategory = () => {
   const [category, setCategory] = useState('')
   const [privacy, setPrivacy] = useState(false)
+  const [error, setError] = useState('')
 
   const dispatch = useDispatch();
   const navigate = useNavigate()
@@ -28,19 +29,24 @@ const AddCategory = () => {
 
   const handleChange = (e) => {
     setCategory(`${e.target.value}`)
+    setError('')
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const resp = await dispatch(addCategory({ category, privacy }));
-    if (resp.payload?.message) {
+    if (resp.payload?.status === 'success') {
       navigate('/')
+    } else {
+      const firstError = resp.payload?.errors?.[0]
+      setError(firstError?.msg || resp.payload?.message || 'Could not create category')
     }
   };
 
   return (
     <main className={mainClass}>
       <h1 className={h1Class}>Create Category</h1>
+      {error && <p className={errorPClass}>{error}</p>}
       <form className={formClass} onSubmit={handleSubmit}>
         <input
           className="p-2 rounded-md border-2 cursor-pointer 

@@ -15,6 +15,25 @@ const Login = () => {
   const navigate = useNavigate()
   const dispatch = useDispatch()
 
+  // Maps a login response to per-field errors. The server returns either
+  // field-keyed validation errors ({ errors: [...] }) or a plain message.
+  const errorsFromLoginResponse = (payload) => {
+    if (!payload) return { user: null, password: 'Login failed' }
+    if (Array.isArray(payload.errors) && payload.errors.length) {
+      const first = payload.errors[0]
+      if (first.param === 'username') return { user: first.msg, password: null }
+      if (first.param === 'password') return { user: null, password: first.msg }
+      return { user: null, password: first.msg || 'Invalid login' }
+    }
+    if (typeof payload.message === 'string') {
+      if (payload.message.includes('User Does Not Exist')) {
+        return { user: payload.message, password: null }
+      }
+      return { user: null, password: payload.message }
+    }
+    return { user: null, password: 'Invalid username or password' }
+  }
+
   useEffect(() => {
     const load = async () => {
       const res = await dispatch(checkSession())
@@ -27,10 +46,12 @@ const Login = () => {
 
   const handleUsernameChange = (e) => {
     setUsername(e.target.value);
+    setErrors((prevState) => ({ ...prevState, user: null }));
   };
 
   const handlePasswordChange = (e) => {
     setPassword(e.target.value);
+    setErrors((prevState) => ({ ...prevState, password: null }));
   };
 
   const handleSubmit = async (e) => {
@@ -38,14 +59,8 @@ const Login = () => {
     const resp = await dispatch(createSession({ username, password }))
     if (resp.payload?.logged) {
       navigate('/')
-    } else if (resp.payload?.message) {
-      setErrors({ user: null, password: null })
-      const firstWord = String(resp.payload.message).split(' ')[0]
-      if (firstWord === "User") {
-        setErrors((prevState) => ({ ...prevState, user: resp.payload.message }))
-      } else {
-        setErrors((prevState) => ({ ...prevState, password: resp.payload.message }))
-      }
+    } else {
+      setErrors(errorsFromLoginResponse(resp.payload))
     }
   };
 

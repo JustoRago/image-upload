@@ -17,16 +17,42 @@ const Signup = () => {
   const navigate = useNavigate()
   const dispatch = useDispatch()
 
+  // Maps a signup response to per-field errors: field-keyed validation errors
+  // from the server, or a plain message for the duplicate checks.
+  const errorsFromSignupResponse = (payload) => {
+    if (!payload) return { email: null, user: null, password: null }
+    if (Array.isArray(payload.errors) && payload.errors.length) {
+      const first = payload.errors[0]
+      if (first.param === 'email') return { email: first.msg, user: null, password: null }
+      if (first.param === 'username') return { email: null, user: first.msg, password: null }
+      if (first.param === 'password') return { email: null, user: null, password: first.msg }
+      return { email: null, user: null, password: first.msg || 'Invalid signup' }
+    }
+    if (typeof payload.message === 'string') {
+      if (payload.message.includes('Email Already Exists')) {
+        return { email: payload.message, user: null, password: null }
+      }
+      if (payload.message.includes('User Already Exists')) {
+        return { email: null, user: payload.message, password: null }
+      }
+      return { email: null, user: null, password: payload.message }
+    }
+    return { email: null, user: null, password: null }
+  }
+
   const handleEmailChange = (event) => {
     setEmail(event.target.value);
+    setErrors((prevState) => ({ ...prevState, email: null }));
   };
 
   const handleUsernameChange = (event) => {
     setUsername(event.target.value);
+    setErrors((prevState) => ({ ...prevState, user: null }));
   };
 
   const handlePasswordChange = (event) => {
     setPassword(event.target.value);
+    setErrors((prevState) => ({ ...prevState, password: null }));
   };
 
   const handleSubmit = async (e) => {
@@ -37,14 +63,8 @@ const Signup = () => {
       if (login.payload?.logged) {
         navigate('/')
       }
-    } else if (signup.payload?.message) {
-      setErrors({ email: null, user: null, password: null })
-      const firstWord = String(signup.payload.message).split(' ')[0]
-      if (firstWord === "User") {
-        setErrors((prevState) => ({ ...prevState, user: signup.payload.message }))
-      } else if (firstWord === "Email") {
-        setErrors((prevState) => ({ ...prevState, email: signup.payload.message }))
-      }
+    } else {
+      setErrors(errorsFromSignupResponse(signup.payload))
     }
   };
 
@@ -69,10 +89,10 @@ const Signup = () => {
         <label className={labelClass}>
           Password:
           <input
-            className="p-2 rounded-md border-2 cursor-pointer 
-            border-gray-400 bg-gray-800 text-white w-full"
+            className={inputClass(errors.password)}
             type="password" value={password} onChange={handlePasswordChange} />
         </label>
+        {errors.password && <p className={errorPClass}>{errors.password}</p>}
         <br />
         <button
           className={submitButtonClass}
