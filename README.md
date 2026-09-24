@@ -85,7 +85,7 @@ Client and server must also be started separately.
 - The client calls the API at the URL in `REACT_APP_API_URL` (default `http://localhost:5000`), which you can override in `client/.env.local` — see [client/.env.example](client/.env.example). Remember to set the same value for deployed builds (e.g. a Netlify environment variable).
 - The server's CORS allowlist comes from `CLIENT_ORIGIN` (default `http://localhost:3000`). The origin the browser actually uses must match it — if you open the app at `http://127.0.0.1:3000`, also set `CLIENT_ORIGIN=http://127.0.0.1:3000` in `server/.env`.
 
-On first start the server seeds a default user so a fresh database is immediately usable:
+On first start the server runs pending schema migrations (`server/migrations/`, in filename order) and seeds a default user so a fresh database is immediately usable:
 
 - username: `asdt560`
 - password: `justojose1`
@@ -99,6 +99,8 @@ npm run seed
 ```
 
 It seeds the default user plus the `Nature`, `Food` and `Technology` categories with placeholder images, and works on the database the server connects to.
+
+Applied migrations are recorded in the `schema_migrations` table, so they only run once per database. Want to apply them without starting the server? From the `server/` folder run `npm run migrate` (safe to re-run).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -126,7 +128,7 @@ All endpoints are under `http://localhost:5000/api/v1` and use a session cookie 
 - **Public category names** share one global namespace — no two public categories may have the same name.
 - **Private category names** only need to be unique within the owning user's private categories — a private category may share its name with public categories or with other users' private categories.
 
-Duplicates are rejected with `409` both by the route and by database indexes (`categories_public_name_unique`, `categories_private_name_unique`) that are created on startup, so concurrent requests cannot slip through.
+Duplicates are rejected with `409` both by the route and by database indexes (`categories_public_name_unique`, `categories_private_name_unique`) that are applied by the schema migrations, so concurrent requests cannot slip through. A database that *already* contains duplicates must be cleaned up first: the index migration will fail rather than let the server run with an unenforced uniqueness guarantee.
 
 ### Security hardening
 

@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import pg from './db.js'
+import { runMigrations } from './migrate.js'
 import { UPLOAD_DIR, uniqueStoredName } from './storedFiles.js'
 
 // A 1x1 transparent PNG so seeded images are real, servable files.
@@ -134,6 +135,9 @@ export async function seedImages(userId, categories) {
 }
 
 export async function seedAll() {
+  // Seeds expect the schema to exist, so apply pending migrations first.
+  // This lets `npm run seed` work straight away on a fresh database.
+  await runMigrations()
   const user = await seedDefaultUser()
   const categories = await seedCategories(user?.id ?? null)
   await seedImages(user?.id ?? null, categories)
