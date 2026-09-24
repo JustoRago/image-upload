@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { checkSession, updatePassword, deleteAccount } from '../redux/session/sessionSlice';
+import { updatePassword, deleteAccount } from '../redux/session/sessionSlice';
 import {
   mainClass,
   h1Class,
@@ -20,16 +20,6 @@ const Account = () => {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const load = async () => {
-      const res = await dispatch(checkSession())
-      if (!res.payload?.user) {
-        navigate('/login')
-      }
-    }
-    load()
-  }, [dispatch, navigate])
 
   const handlePasswordSubmit = async (e) => {
     e.preventDefault()

@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { addCategory } from '../redux/categories/categorySlice';
 import { useNavigate } from 'react-router-dom';
-import { checkSession } from '../redux/session/sessionSlice';
 import { mainClass, h1Class, formClass, errorPClass } from '../constants';
 
 const AddCategory = () => {
@@ -12,16 +11,6 @@ const AddCategory = () => {
 
   const dispatch = useDispatch();
   const navigate = useNavigate()
-
-  useEffect(() => {
-    const load = async () => {
-      const res = await dispatch(checkSession())
-      if (!res.payload?.user) {
-        navigate('/')
-      }
-    }
-    load()
-  }, [dispatch, navigate])
 
   const handleCheckbox = (e) => {
     setPrivacy(e.currentTarget.checked)
