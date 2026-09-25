@@ -7,6 +7,7 @@ import { mainClass, h1Class, formClass, errorPClass } from '../constants';
 const AddCategory = () => {
   const [category, setCategory] = useState('')
   const [privacy, setPrivacy] = useState(false)
+  const [description, setDescription] = useState('')
   const [error, setError] = useState('')
 
   const dispatch = useDispatch();
@@ -21,9 +22,14 @@ const AddCategory = () => {
     setError('')
   }
 
+  const handleDescriptionChange = (e) => {
+    setDescription(e.target.value)
+    setError('')
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const resp = await dispatch(addCategory({ category, privacy }));
+    const resp = await dispatch(addCategory({ category, privacy, description }));
     if (resp.payload?.status === 'success') {
       navigate('/')
     } else {
@@ -41,6 +47,14 @@ const AddCategory = () => {
           className="p-2 rounded-md border-2 cursor-pointer 
           border-gray-400 bg-gray-800 text-white w-full"
           type="text" placeholder="Category" onChange={handleChange}/>
+        <textarea
+          className="p-2 rounded-md border-2 cursor-pointer 
+          border-gray-400 bg-gray-800 text-white w-full"
+          style={{ minHeight: '6rem' }}
+          placeholder="Description (optional) — one or more paragraphs"
+          value={description}
+          onChange={handleDescriptionChange}
+        />
         <label>
           Private:
           <input type="checkbox" onChange={handleCheckbox} />

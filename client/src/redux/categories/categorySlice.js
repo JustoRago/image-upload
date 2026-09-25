@@ -25,9 +25,9 @@ const addCategory = createAsyncThunk('categories/addCategory', async (obj, { rej
   }
 });
 
-const updateCategory = createAsyncThunk('categories/updateCategory', async ({ id, category, privacy }, { rejectWithValue }) => {
+const updateCategory = createAsyncThunk('categories/updateCategory', async ({ id, category, privacy, description }, { rejectWithValue }) => {
   try {
-    return await apiFetch(`/api/v1/categories/${id}`, { method: 'PATCH', body: { category, privacy } });
+    return await apiFetch(`/api/v1/categories/${id}`, { method: 'PATCH', body: { category, privacy, description } });
   } catch (err) {
     return rejectWithValue(err.body || { message: err.message });
   }
@@ -106,12 +106,24 @@ const categorySlice = createSlice({
               ...c,
               categoryname: action.payload?.data?.name ?? c.categoryname,
               private: action.payload?.data?.private ?? c.private,
+              description:
+                'description' in (action.payload?.data ?? {})
+                  ? action.payload.data.description
+                  : c.description,
             }
           : c
       ),
       currentCategory:
         state.currentCategory?.id === action.meta.arg.id
-          ? { ...state.currentCategory, ...action.payload?.data }
+          ? {
+              ...state.currentCategory,
+              categoryname: action.payload?.data?.name ?? state.currentCategory.categoryname,
+              private: action.payload?.data?.private ?? state.currentCategory.private,
+              description:
+                'description' in (action.payload?.data ?? {})
+                  ? action.payload.data.description
+                  : state.currentCategory.description,
+            }
           : state.currentCategory,
     }));
     builder.addCase(updateCategory.rejected, (state, action) => ({

@@ -8,6 +8,7 @@ const Categories = () => {
   const [editingId, setEditingId] = useState(null)
   const [editName, setEditName] = useState('')
   const [editPrivate, setEditPrivate] = useState(false)
+  const [editDescription, setEditDescription] = useState('')
   const [message, setMessage] = useState('')
 
   const user = useSelector((state) => state.sessionReducer.user)
@@ -22,6 +23,7 @@ const Categories = () => {
     setEditingId(category.id)
     setEditName(category.categoryname)
     setEditPrivate(Boolean(category.private))
+    setEditDescription(category.description || '')
     setMessage('')
   }
 
@@ -32,7 +34,7 @@ const Categories = () => {
       setMessage('Category name cannot be empty')
       return
     }
-    const resp = await dispatch(updateCategory({ id: editingId, category: name, privacy: editPrivate }))
+    const resp = await dispatch(updateCategory({ id: editingId, category: name, privacy: editPrivate, description: editDescription.trim() }))
     if (resp.payload?.status === 'success') {
       setEditingId(null)
       setMessage('')
@@ -63,17 +65,24 @@ const Categories = () => {
             key={category.id}
             className='flex justify-between items-center border-2 p-2 border-double border-white'
           >
-            <NavLink to={`/category/${category.id}`} className='flex items-center gap-4'>
-              <p className="text-lg text-white font-bold">
-                {category.categoryname}
-              </p>
-              <span
-                className={`px-2 py-0.5 rounded-md text-xs font-bold ${
-                  category.private ? 'bg-red-500 text-white' : 'bg-green-600 text-white'
-                }`}
-              >
-                {category.private ? 'Private' : 'Public'}
-              </span>
+            <NavLink to={`/category/${category.id}`} className='flex flex-col items-start gap-1'>
+              <div className="flex items-center gap-4">
+                <p className="text-lg text-white font-bold">
+                  {category.categoryname}
+                </p>
+                <span
+                  className={`px-2 py-0.5 rounded-md text-xs font-bold ${
+                    category.private ? 'bg-red-500 text-white' : 'bg-green-600 text-white'
+                  }`}
+                >
+                  {category.private ? 'Private' : 'Public'}
+                </span>
+              </div>
+              {category.description ? (
+                <p className="text-sm text-gray-300 whitespace-pre-line max-w-xl">
+                  {category.description}
+                </p>
+              ) : null}
             </NavLink>
 
             {isOwner(category) && (
@@ -85,6 +94,13 @@ const Categories = () => {
                       type="text"
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
+                    />
+                    <textarea
+                      className={inputClass(false)}
+                      style={{ minHeight: '4rem' }}
+                      placeholder="Description"
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
                     />
                     <label className="text-white text-sm">
                       <input
