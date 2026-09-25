@@ -13,9 +13,21 @@ const TINY_PNG = Buffer.from(
 )
 
 const DEFAULT_CATEGORIES = [
-  { name: 'Nature', private: false },
-  { name: 'Food', private: false },
-  { name: 'Technology', private: false },
+  {
+    name: 'Nature',
+    private: false,
+    description: 'Outdoor photographs — landscapes, wildlife and the way light falls.',
+  },
+  {
+    name: 'Food',
+    private: false,
+    description: 'Food photography: dishes, ingredients and the kitchens that make them.',
+  },
+  {
+    name: 'Technology',
+    private: false,
+    description: 'Servers, gadgets and other machinery of the digital world.',
+  },
 ]
 
 const DEFAULT_IMAGES = [
@@ -86,10 +98,10 @@ export async function seedCategories(userId) {
       continue
     }
     const row = await pg.one(
-      `INSERT INTO categories (categoryName, created_at, private, creator_id)
-       VALUES ($1, current_timestamp, $2, $3)
+      `INSERT INTO categories (categoryName, created_at, private, creator_id, description)
+       VALUES ($1, current_timestamp, $2, $3, $4)
        RETURNING id, categoryname`,
-      [cat.name, cat.private, userId]
+      [cat.name, cat.private, userId, cat.description ?? null]
     )
     console.log(`Seeded category '${cat.name}'`)
     result.push(row)

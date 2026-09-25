@@ -57,7 +57,7 @@
 
 
 - **Sign up and login system.**
-- **Creation of public or private categories and authorization.**
+- **Creation of public or private categories (with optional descriptions) and authorization.**
 - **Uploading of images.**
 - **Searching images.**
 - **Rename or delete images, edit and delete categories.**
@@ -115,8 +115,8 @@ All endpoints are under `http://localhost:5000/api/v1` and use a session cookie 
 | `PATCH /users/password` | Change the password (body: `current_password`, `new_password`). |
 | `DELETE /users/account` | Delete the account and its data (blocked while its categories still contain images). |
 | `GET /categories`, `GET /categories/:id` | List/view categories. Anonymous users only see public ones. |
-| `POST /categories` | Create a category (body: `category`, `privacy`). |
-| `PATCH /categories/:id` | Rename and/or toggle privacy of an owned category. |
+| `POST /categories` | Create a category (body: `category`, `privacy`, optional `description`). |
+| `PATCH /categories/:id` | Rename, toggle privacy, and/or change the `description` of an owned category (omitted fields are kept; an empty `description` clears it). |
 | `DELETE /categories/:id` | Delete an owned, empty category. |
 | `GET /images`, `GET /images/:categoryId` | List, search (`?search=`), random (`?random=true`) and per-category images. |
 | `POST /images` | Upload an image (multipart: `img_name`, `category`, `files`). Only PNG, JPEG, GIF and WebP up to 10 MB are accepted — content is validated by magic bytes, not the client MIME type. |

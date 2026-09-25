@@ -89,6 +89,36 @@ describe('categories routes', () => {
       expect(res.status).toBe(409)
       expect(res.body.message).toBe('Category already exists')
     });
+
+    it('stores an optional description on creation', async () => {
+      const res = await sessionUser.post('/api/v1/categories')
+        .send({ category: unique('desc'), description: 'First paragraph.\n\nSecond paragraph.' })
+      expect(res.status).toBe(200)
+      expect(res.body.status).toBe('success')
+      expect(res.body.data.description).toBe('First paragraph.\n\nSecond paragraph.')
+
+      const one = await request(app).get(`/api/v1/categories/${res.body.data.id}`)
+      expect(one.body.data.category[0].description).toBe('First paragraph.\n\nSecond paragraph.')
+      createdIds.push(res.body.data.id)
+    });
+
+    it('stores a null description when omitted', async () => {
+      const res = await sessionUser.post('/api/v1/categories')
+        .send({ category: unique('nodesc') })
+      expect(res.status).toBe(200)
+      expect(res.body.data.description).toBeNull()
+
+      const one = await request(app).get(`/api/v1/categories/${res.body.data.id}`)
+      expect(one.body.data.category[0].description).toBeNull()
+      createdIds.push(res.body.data.id)
+    });
+
+    it('rejects an over-long description with 422', async () => {
+      const res = await sessionUser.post('/api/v1/categories')
+        .send({ category: unique('longdesc'), description: 'x'.repeat(5001) })
+      expect(res.status).toBe(422)
+      expect(res.body.errors[0].msg).toMatch(/at most 5000 characters/)
+    });
   });
 
   describe('category name uniqueness rules', () => {
@@ -267,6 +297,46 @@ describe('categories routes', () => {
       const res = await sessionUser.patch(`/api/v1/categories/${publicId}`)
         .send({ category: taken })
       expect(res.status).toBe(409)
+    });
+
+    it('updates the description on its own, without touching the name', async () => {
+      const res = await sessionUser.patch(`/api/v1/categories/${publicId}`)
+        .send({ description: 'New multi-paragraph.\n\nWith a second paragraph.' })
+      expect(res.status).toBe(200)
+      expect(res.body.status).toBe('success')
+      expect(res.body.data.description).toBe('New multi-paragraph.\n\nWith a second paragraph.')
+
+      const after = await request(app).get(`/api/v1/categories/${publicId}`)
+      expect(after.body.data.category[0].categoryname).toBe('Renamed Category')
+      expect(after.body.data.category[0].description).toBe('New multi-paragraph.\n\nWith a second paragraph.')
+    });
+
+    it('clears the description when sent empty', async () => {
+      await sessionUser.patch(`/api/v1/categories/${publicId}`)
+        .send({ description: 'Temporary text' })
+      const res = await sessionUser.patch(`/api/v1/categories/${publicId}`)
+        .send({ description: '   ' })
+      expect(res.status).toBe(200)
+      expect(res.body.data.description).toBeNull()
+
+      const after = await request(app).get(`/api/v1/categories/${publicId}`)
+      expect(after.body.data.category[0].description).toBeNull()
+    });
+
+    it('keeps the description when it is not part of the update', async () => {
+      await sessionUser.patch(`/api/v1/categories/${publicId}`)
+        .send({ description: 'sticky description' })
+      const res = await sessionUser.patch(`/api/v1/categories/${publicId}`)
+        .send({ category: unique('keepdesc') })
+      expect(res.status).toBe(200)
+      expect(res.body.data.description).toBe('sticky description')
+    });
+
+    it('rejects an over-long description with 400', async () => {
+      const res = await sessionUser.patch(`/api/v1/categories/${publicId}`)
+        .send({ description: 'x'.repeat(5001) })
+      expect(res.status).toBe(400)
+      expect(res.body.message).toMatch(/at most 5000 characters/)
     });
   });
 
